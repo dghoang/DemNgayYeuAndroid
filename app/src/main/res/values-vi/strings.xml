@@ -1,0 +1,148 @@
+<resources>
+    <!-- App Name -->
+    <string name="app_name">InLove</string>
+
+    <!-- Navigation Tabs -->
+    <string name="nav_home">Trang Chủ</string>
+    <string name="nav_memories">Kỷ Niệm</string>
+    <string name="nav_calendar">Lịch &amp; Hẹn</string>
+    <string name="nav_gifts">Gợi Ý Quà</string>
+    <string name="nav_reminders">Nhắc Hẹn</string>
+    <string name="nav_settings">Cài Đặt</string>
+
+    <!-- Quick Action Bar -->
+    <string name="action_wallpaper">Đổi Nền</string>
+    <string name="action_memory">Thêm Ảnh</string>
+    <string name="action_couple">Đồng Hành</string>
+    <string name="action_guide">Hướng Dẫn</string>
+    <string name="action_language">Ngôn Ngữ</string>
+
+    <!-- Home Screen -->
+    <string name="days_in_love">ngày yêu nhau</string>
+    <string name="next_milestone_title">Cột Mốc %1$d Ngày Yêu</string>
+    <string name="next_milestone_header">GỢI Ý KỶ NIỆM TIẾP THEO</string>
+    <string name="days_remaining_format">Còn %1$d ngày</string>
+    <string name="progress_towards">Tiến độ đạt mốc</string>
+    <string name="romantic_advice_format">💡 Gợi ý lãng mạn: Chỉ còn %1$d ngày nữa là chạm mốc %2$d ngày yêu! Hãy lên kế hoạch đặt bàn hẹn hò đặc biệt hoặc chuẩn bị món quà bất ngờ dành tặng cho %3$s nhé!</string>
+    <string name="btn_gift_ideas">Gợi Ý Quà Tặng</string>
+    <string name="btn_anniversary_calendar">Lịch Kỷ Niệm</string>
+    <string name="quote_section_tag">DÒNG CẢM XÚC ĐÔI LỨA</string>
+    <string name="quote_section_title">Phản Hồi &amp; Lời Yêu Thương 💕</string>
+    <string name="btn_shuffle_quote">Đổi Lời Chúc 💫</string>
+    <string name="btn_send_to_partner">Gửi Bạn Ấy 💌</string>
+    <string name="milestone_celebration_title">🎉 Chúc Mừng Cột Mốc Kỷ Niệm!</string>
+    <string name="milestone_celebration_btn">Phóng Mưa Tim Kỷ Niệm 💕</string>
+    <string name="ad_placeholder_notice">Khu vực chuẩn bị sẵn để tích hợp Plugin Quảng Cáo (AdMob)</string>
+    <string name="counting_days_notice">InLove: Đang đếm %1$d ngày yêu nhau ❤️</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Cài Đặt</string>
+    <string name="settings_profile_card_edit">Chỉnh sửa</string>
+    <string name="settings_sweet_days_format">Đã đồng hành %1$d ngày ngọt ngào ❤️</string>
+    <string name="settings_db_secured">💾 Dữ liệu lưu an toàn (Chạm để chỉnh sửa)</string>
+    
+    <string name="settings_section_profile">Hồ Sơ &amp; Kỷ Niệm Yêu Thương</string>
+    <string name="settings_edit_profile_title">Chỉnh sửa thông tin 2 bạn</string>
+    <string name="settings_edit_profile_sub">Tên, ngày sinh, cung hoàng đạo &amp; ngày bắt đầu yêu</string>
+    <string name="settings_capture_memory_title">Chụp ảnh &amp; Lưu giữ kỷ niệm</string>
+    <string name="settings_capture_memory_sub">Thêm khoảnh khắc đáng nhớ vào dòng thời gian</string>
+    <string name="settings_db_sync_title">Đồng bộ bộ nhớ Room Database</string>
+    <string name="settings_db_sync_sub">Dữ liệu được lưu trữ tự động và bền vững</string>
+    <string name="settings_db_sync_toast">Dữ liệu Room Database đang đồng bộ hoàn hảo!</string>
+
+    <string name="settings_section_appearance">Giao Diện &amp; Cá Nhân Hóa</string>
+    <string name="settings_language_title">Ngôn Ngữ Ứng Dụng</string>
+    <string name="settings_language_sub">Chuyển đổi giao diện giữa Tiếng Việt &amp; English</string>
+    <string name="settings_language_toggle_label">Chuyển nhanh</string>
+    <string name="settings_language_current_en">Đang dùng: English 🇬🇧</string>
+    <string name="settings_language_current_vi">Đang dùng: Tiếng Việt 🇻🇳</string>
+    <string name="settings_wallpaper_title">Đổi Hình Nền Đôi</string>
+    <string name="settings_wallpaper_sub">Tùy chọn nền hoa anh đào, hoàng hôn biển, bầu trời sao</string>
+    <string name="settings_guide_title">Cẩm Nang Hướng Dẫn</string>
+    <string name="settings_guide_sub">Xem hướng dẫn đếm ngày, lịch kỷ niệm &amp; mẹo quà tặng</string>
+
+    <string name="settings_section_notifications">Thông Báo &amp; Lời Nhắc</string>
+    <string name="settings_notif_anniversary_title">Thông báo mốc kỷ niệm</string>
+    <string name="settings_notif_anniversary_sub">Nhắc nhở trước 7 ngày, 3 ngày &amp; 1 ngày</string>
+    <string name="settings_notif_enabled_toast">Đã bật nhắc thông báo kỷ niệm</string>
+    <string name="settings_notif_disabled_toast">Đã tắt nhắc thông báo</string>
+    <string name="settings_notif_sound_title">Âm thanh chuông báo yêu thương</string>
+    <string name="settings_notif_sound_sub">Giai điệu lãng mạn nhẹ nhàng</string>
+
+    <string name="settings_section_security">Bảo Mật &amp; Thông Tin</string>
+    <string name="settings_lock_title">Khóa ứng dụng riêng tư</string>
+    <string name="settings_lock_sub">Bảo vệ khoảnh khắc riêng tư bằng vân tay/PIN</string>
+    <string name="settings_about_title">Về InLove</string>
+    <string name="settings_about_sub">Phiên bản 1.0.0 • Dành cho các cặp đôi</string>
+    <string name="settings_about_toast">InLove - Lưu giữ trọn vẹn từng khoảnh khắc yêu thương ❤️</string>
+
+    <!-- Language Options & Dialog -->
+    <string name="lang_dialog_title">Chọn Ngôn Ngữ / Select Language</string>
+    <string name="lang_dialog_subtitle">Vui lòng chọn ngôn ngữ bạn muốn sử dụng trong ứng dụng</string>
+    <string name="lang_vietnamese">Tiếng Việt 🇻🇳</string>
+    <string name="lang_english">English 🇬🇧</string>
+    <string name="lang_vi_desc">Giao diện và tính năng bằng Tiếng Việt</string>
+    <string name="lang_en_desc">Interface and features in English</string>
+    <string name="btn_confirm">Xác Nhận</string>
+    <string name="btn_cancel">Hủy</string>
+
+    <!-- Guide Dialog -->
+    <string name="guide_title">Cẩm Nang Sử Dụng InLove</string>
+    <string name="guide_subtitle">Khám phá các tính năng giúp hâm nóng tình cảm đôi bạn</string>
+    <string name="guide_tab_counter">Đếm Ngày Yêu</string>
+    <string name="guide_tab_memories">Kho Kỷ Niệm</string>
+    <string name="guide_tab_calendar">Lịch Kỷ Niệm</string>
+    <string name="guide_tab_gifts">Gợi Ý Quà</string>
+    <string name="guide_tab_reminders">Nhắc Hẹn</string>
+    <string name="guide_tab_settings">Cài Đặt</string>
+    <string name="btn_got_it">Đã Hiểu ✨</string>
+
+    <!-- Wallpaper Dialog -->
+    <string name="wallpaper_title">Đổi Hình Nền Lãng Mạn</string>
+    <string name="wallpaper_subtitle">Chọn phông nền ngọt ngào làm đẹp cho trang chủ của đôi bạn</string>
+    <string name="wallpaper_preset_cherry">Hoa Anh Đào Mộng Mơ</string>
+    <string name="wallpaper_preset_sunset">Hoàng Hôn Tình Yêu</string>
+    <string name="wallpaper_preset_starry">Đêm Sao Lãng Mạn</string>
+    <string name="wallpaper_preset_pastel">Hồng Phấn Ngọt Ngào</string>
+    <string name="wallpaper_custom_url">Liên kết ảnh tùy chọn (URL)</string>
+    <string name="btn_apply_wallpaper">Áp Dụng Hình Nền 🌸</string>
+
+    <!-- Memories Screen & Dialog -->
+    <string name="memory_album_title">Album Kỷ Niệm Đôi Ta 📸</string>
+    <string name="memory_album_subtitle">Những bức ảnh và khoảnh khắc đáng nhớ nhất trong hành trình yêu</string>
+    <string name="memory_title">Lưu Giữ Khoảnh Khắc Kỷ Niệm</string>
+    <string name="memory_subtitle">Chụp ảnh hoặc chọn từ thư viện để lưu vào nhật ký tình yêu</string>
+    <string name="memory_title_label">Tiêu đề kỷ niệm *</string>
+    <string name="memory_date_label">Ngày kỷ niệm (dd/MM/yyyy) *</string>
+    <string name="memory_location_label">Địa điểm hẹn hò</string>
+    <string name="memory_note_label">Dòng nhật ký &amp; cảm xúc</string>
+    <string name="memory_pick_photo">Chọn Từ Thư Viện 🖼️</string>
+    <string name="memory_capture_photo">Chụp Ảnh Mới 📸</string>
+    <string name="memory_preset_notice">Hoặc chọn nhanh ảnh mẫu lãng mạn:</string>
+    <string name="memory_note_placeholder">Nhập dòng nhật ký hoặc lời nhắn gửi ngọt ngào…</string>
+    <string name="memory_url_placeholder">Dán liên kết hình ảnh kỷ niệm (URL)…</string>
+    <string name="btn_save_memory">Lưu Vào Kỷ Niệm ❤️</string>
+    <string name="btn_add_memory">Thêm Kỷ Niệm Mới</string>
+    <string name="memory_empty_title">Chưa có bức ảnh kỷ niệm nào</string>
+    <string name="memory_empty_subtitle">Hãy chụp hoặc chọn bức ảnh đầu tiên để lưu lại khoảnh khắc ngọt ngào của hai bạn!</string>
+    <string name="memory_filter_all">Tất cả</string>
+    <string name="memory_filter_fav">Yêu thích</string>
+    <string name="memory_delete_btn">Xóa Ảnh</string>
+    <string name="memory_confirm_delete">Xác nhận xóa</string>
+
+    <!-- Couple Profile Dialog -->
+    <string name="edit_couple_title">Chỉnh Sửa Hồ Sơ Đôi Bạn</string>
+    <string name="edit_couple_sub">Cập nhật tên, ngày sinh, cung hoàng đạo &amp; ngày yêu</string>
+    <string name="edit_couple_partner1">Bạn Nam</string>
+    <string name="edit_couple_partner2">Bạn Nữ</string>
+    <string name="edit_couple_name_label">Tên</string>
+    <string name="edit_couple_birthday_label">Ngày sinh (dd/MM/yyyy)</string>
+    <string name="edit_couple_zodiac_label">Cung hoàng đạo</string>
+    <string name="edit_couple_title_label">Biệt danh tình yêu</string>
+    <string name="edit_couple_days_label">Số ngày yêu nhau</string>
+    <string name="btn_save_couple">Lưu Thay Đổi ❤️</string>
+
+    <!-- Generic & Toasts -->
+    <string name="toast_switched_vi">Đã chuyển sang Tiếng Việt 🇻🇳</string>
+    <string name="toast_switched_en">Đã chuyển sang English 🇬🇧</string>
+</resources>

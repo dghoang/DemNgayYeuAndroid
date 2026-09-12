@@ -1,0 +1,6 @@
+{
+  "name": "InLove",
+  "description": "Ứng dụng theo dõi kỷ niệm tình yêu, gợi ý quà tặng lãng mạn và trung tâm nhắc hẹn thông minh",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
