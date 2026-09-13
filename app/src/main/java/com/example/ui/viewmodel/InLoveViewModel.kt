@@ -32,6 +32,9 @@ import kotlinx.coroutines.launch
 class InLoveViewModel(application: Application) : AndroidViewModel(application) {
 
   private val repository: InLoveRepository
+  val onlineRepo: com.example.data.repository.OnlineCoupleRepository
+  val authRepo: com.example.data.repository.AuthRepository
+  val authState: StateFlow<com.example.data.repository.AuthState>
 
   val milestones: StateFlow<List<MilestoneEntity>>
   val giftIdeas: StateFlow<List<GiftIdeaEntity>>
@@ -43,6 +46,21 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
   val loveBadges: StateFlow<List<LoveBadgeEntity>>
   val anniversaryDates: StateFlow<List<AnniversaryDateEntity>>
   val giftReminders: StateFlow<List<GiftReminderEntity>>
+
+  // Online 1-1 Set Love StateFlows
+  val currentOnlineUser: StateFlow<com.example.data.model.OnlineUserEntity>
+  val partnerOnlineUser: StateFlow<com.example.data.model.OnlineUserEntity?>
+  val activeRelationship: StateFlow<com.example.data.model.OnlineRelationshipEntity?>
+  val relationshipStatus: StateFlow<String>
+  val mutualInterests: StateFlow<Set<String>>
+  val incomingInvite: StateFlow<com.example.data.model.OnlineInviteEntity?>
+  val outgoingInvite: StateFlow<com.example.data.model.OnlineInviteEntity?>
+
+  private val _showPairingScreen = MutableStateFlow(false)
+  val showPairingScreen: StateFlow<Boolean> = _showPairingScreen.asStateFlow()
+
+  fun openPairingScreen() { _showPairingScreen.value = true }
+  fun closePairingScreen() { _showPairingScreen.value = false }
 
   private val _selectedTab = MutableStateFlow(0) // Default to Love Screen matching image.png!
   val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
@@ -192,6 +210,17 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
   init {
     val database = AppDatabase.getDatabase(application)
     repository = InLoveRepository(database.inLoveDao())
+    onlineRepo = com.example.data.repository.OnlineCoupleRepository(database.inLoveDao(), application)
+    authRepo = com.example.data.repository.AuthRepository(database.inLoveDao(), onlineRepo, application)
+    authState = authRepo.authState
+
+    currentOnlineUser = onlineRepo.currentUser
+    partnerOnlineUser = onlineRepo.partnerUser
+    activeRelationship = onlineRepo.activeRelationship
+    relationshipStatus = onlineRepo.relationshipStatus
+    mutualInterests = onlineRepo.mutualInterests
+    incomingInvite = onlineRepo.incomingInvite
+    outgoingInvite = onlineRepo.outgoingInvite
 
     milestones = repository.milestones.stateIn(
       viewModelScope,
@@ -1089,6 +1118,206 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
     viewModelScope.launch {
       repository.deleteGiftReminder(id)
       showToast("Đã xóa lời nhắc quà tặng.")
+    }
+  }
+
+  // Online 1-1 Set Love Search & Inspection State
+  private val _searchQuery = MutableStateFlow("")
+  val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+  private val _searchedUser = MutableStateFlow<com.example.data.model.OnlineUserEntity?>(null)
+  val searchedUser: StateFlow<com.example.data.model.OnlineUserEntity?> = _searchedUser.asStateFlow()
+
+  private val _isSearching = MutableStateFlow(false)
+  val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+  fun updateSearchQuery(query: String) {
+    _searchQuery.value = query
+    if (query.isBlank()) {
+      _searchedUser.value = null
+    }
+  }
+
+  fun performSearch() {
+    val query = _searchQuery.value.trim()
+    if (query.isBlank()) {
+      showToast("Vui lòng nhập mã ghép đôi, tên hoặc email!")
+      return
+    }
+    viewModelScope.launch {
+      _isSearching.value = true
+      val user = onlineRepo.searchUserByCodeOrNameOrEmail(query)
+      _searchedUser.value = user
+      _isSearching.value = false
+      if (user == null) {
+        showToast("Không tìm thấy người dùng với thông tin: $query")
+      } else {
+        showToast("Đã tìm thấy thông tin của ${user.effectiveDisplayName}!")
+      }
+    }
+  }
+
+  suspend fun searchPartnerForSetLove(query: String): com.example.data.model.OnlineUserEntity? {
+    return onlineRepo.searchUserByCodeOrNameOrEmail(query)
+  }
+
+  fun clearSearch() {
+    _searchQuery.value = ""
+    _searchedUser.value = null
+  }
+
+  // Identity & Date Verification before accepting invite
+  private val _selectedInviteForVerification = MutableStateFlow<com.example.data.model.OnlineInviteEntity?>(null)
+  val selectedInviteForVerification: StateFlow<com.example.data.model.OnlineInviteEntity?> = _selectedInviteForVerification.asStateFlow()
+
+  fun inspectInvite(invite: com.example.data.model.OnlineInviteEntity) {
+    _selectedInviteForVerification.value = invite
+  }
+
+  fun dismissInspectInvite() {
+    _selectedInviteForVerification.value = null
+  }
+
+  // Edit My Profile Dialog & Flow
+  private val _showEditProfileDialog = MutableStateFlow(false)
+  val showEditProfileDialog: StateFlow<Boolean> = _showEditProfileDialog.asStateFlow()
+
+  fun openEditProfileDialog() {
+    _showEditProfileDialog.value = true
+  }
+
+  fun closeEditProfileDialog() {
+    _showEditProfileDialog.value = false
+  }
+
+  fun updateMyProfile(
+    name: String,
+    birthDate: String,
+    avatarUrl: String,
+    gender: String,
+    bio: String
+  ) {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.updateMyProfile(name, birthDate, avatarUrl, gender, bio)
+      showToast(message)
+      if (success) {
+        _showEditProfileDialog.value = false
+        triggerFloatingHearts()
+      }
+    }
+  }
+
+  // Online 1-1 Set Love Actions
+  fun sendSetLoveInvite(
+    targetCodeOrLink: String,
+    proposedStartDateMillis: Long = System.currentTimeMillis(),
+    loveNote: String = ""
+  ) {
+    if (targetCodeOrLink.isBlank()) {
+      showToast("Vui lòng nhập mã ghép đôi hoặc dán link đối phương!")
+      return
+    }
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.sendSetLoveInvite(targetCodeOrLink, proposedStartDateMillis, loveNote)
+      showToast(message)
+      if (success) {
+        _searchQuery.value = ""
+        _searchedUser.value = null
+        triggerFloatingHearts()
+      }
+    }
+  }
+
+  fun acceptSetLoveInvite(inviteId: String = "", confirmedStartDateMillis: Long? = null) {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.acceptSetLoveInvite(inviteId, confirmedStartDateMillis)
+      showToast(message)
+      _selectedInviteForVerification.value = null
+      if (success) {
+        triggerFloatingHearts(isMilestone = true)
+      }
+    }
+  }
+
+  fun rejectSetLoveInvite(inviteId: String = "") {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.rejectSetLoveInvite(inviteId)
+      showToast(message)
+      _selectedInviteForVerification.value = null
+    }
+  }
+
+  fun cancelSentInvite() {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.cancelSentInvite()
+      showToast(message)
+      _searchQuery.value = ""
+      _searchedUser.value = null
+    }
+  }
+
+  fun requestBreakup() {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.requestBreakup()
+      showToast(message)
+    }
+  }
+
+  fun confirmBreakup() {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.confirmBreakup()
+      showToast(message)
+    }
+  }
+
+  fun rejectBreakup() {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.rejectBreakup()
+      showToast(message)
+    }
+  }
+
+  fun forceBreakup() {
+    viewModelScope.launch {
+      val (success, message) = onlineRepo.forceBreakup()
+      showToast(message)
+    }
+  }
+
+  fun toggleInterest(interestKey: String) {
+    viewModelScope.launch {
+      onlineRepo.toggleInterest(interestKey)
+      showToast("Đã cập nhật sở thích cá nhân")
+    }
+  }
+
+  fun switchDemoUser() {
+    onlineRepo.switchDemoUser()
+    showToast("Đã chuyển đổi tài khoản thử nghiệm 1-1")
+  }
+
+  fun logout() {
+    viewModelScope.launch {
+      authRepo.logout()
+      showToast("Đã đăng xuất an toàn")
+    }
+  }
+
+  fun lockApp() {
+    authRepo.lockApp()
+  }
+
+  fun setAppPin(pin: String) {
+    viewModelScope.launch {
+      val res = authRepo.setAppPin(pin)
+      showToast(res.second)
+    }
+  }
+
+  fun togglePinEnabled(enabled: Boolean) {
+    viewModelScope.launch {
+      val res = authRepo.togglePinEnabled(enabled)
+      showToast(res.second)
     }
   }
 }

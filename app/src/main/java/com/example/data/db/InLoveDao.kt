@@ -164,4 +164,107 @@ interface InLoveDao {
 
   @Query("DELETE FROM gift_reminders WHERE id = :id")
   suspend fun deleteGiftReminderById(id: Long)
+
+  // Online 1-1 Set Love DAO Operations
+  @Query("SELECT * FROM online_users WHERE isCurrentUser = 1 LIMIT 1")
+  fun getCurrentOnlineUser(): Flow<com.example.data.model.OnlineUserEntity?>
+
+  @Query("SELECT * FROM online_users WHERE isCurrentUser = 1 LIMIT 1")
+  suspend fun getCurrentOnlineUserSync(): com.example.data.model.OnlineUserEntity?
+
+  @Query("SELECT * FROM online_users WHERE uid = :uid LIMIT 1")
+  fun getOnlineUserByUid(uid: String): Flow<com.example.data.model.OnlineUserEntity?>
+
+  @Query("SELECT * FROM online_users WHERE uid = :uid LIMIT 1")
+  suspend fun getOnlineUserByUidSync(uid: String): com.example.data.model.OnlineUserEntity?
+
+  @Query("SELECT * FROM online_users WHERE coupleCode = :code LIMIT 1")
+  suspend fun getOnlineUserByCoupleCodeSync(code: String): com.example.data.model.OnlineUserEntity?
+
+  @Query("SELECT * FROM online_users WHERE coupleCode LIKE '%' || :query || '%' OR email LIKE '%' || :query || '%' OR displayName LIKE '%' || :query || '%' LIMIT 10")
+  suspend fun searchOnlineUsersSync(query: String): List<com.example.data.model.OnlineUserEntity>
+
+  @Query("SELECT * FROM online_users")
+  suspend fun getAllOnlineUsersListSync(): List<com.example.data.model.OnlineUserEntity>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertOnlineUser(user: com.example.data.model.OnlineUserEntity)
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertOnlineUsers(users: List<com.example.data.model.OnlineUserEntity>)
+
+  @Update
+  suspend fun updateOnlineUser(user: com.example.data.model.OnlineUserEntity)
+
+  @Query("SELECT * FROM online_relationships WHERE relationshipId = :relId LIMIT 1")
+  fun getOnlineRelationship(relId: String): Flow<com.example.data.model.OnlineRelationshipEntity?>
+
+  @Query("SELECT * FROM online_relationships WHERE relationshipId = :relId LIMIT 1")
+  suspend fun getOnlineRelationshipSync(relId: String): com.example.data.model.OnlineRelationshipEntity?
+
+  @Query("SELECT * FROM online_relationships WHERE (user1 = :uid OR user2 = :uid) AND status = 'ACTIVE' LIMIT 1")
+  suspend fun getActiveRelationshipForUser(uid: String): com.example.data.model.OnlineRelationshipEntity?
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertOnlineRelationship(relationship: com.example.data.model.OnlineRelationshipEntity)
+
+  @Update
+  suspend fun updateOnlineRelationship(relationship: com.example.data.model.OnlineRelationshipEntity)
+
+  @Query("SELECT * FROM online_invites WHERE targetCoupleCode = :code AND status = 'PENDING' ORDER BY createdAt DESC")
+  fun getIncomingInvites(code: String): Flow<List<com.example.data.model.OnlineInviteEntity>>
+
+  @Query("SELECT * FROM online_invites WHERE targetCoupleCode = :code AND status = 'PENDING' ORDER BY createdAt DESC LIMIT 1")
+  suspend fun getIncomingInviteByTargetCodeSync(code: String): com.example.data.model.OnlineInviteEntity?
+
+  @Query("SELECT * FROM online_invites WHERE inviteId = :inviteId LIMIT 1")
+  suspend fun getInviteByIdSync(inviteId: String): com.example.data.model.OnlineInviteEntity?
+
+  @Query("SELECT * FROM online_invites WHERE senderUid = :uid AND status = 'PENDING' ORDER BY createdAt DESC LIMIT 1")
+  fun getActiveOutgoingInvite(uid: String): Flow<com.example.data.model.OnlineInviteEntity?>
+
+  @Query("SELECT * FROM online_invites WHERE senderUid = :uid AND status = 'PENDING' ORDER BY createdAt DESC LIMIT 1")
+  suspend fun getActiveOutgoingInviteSync(uid: String): com.example.data.model.OnlineInviteEntity?
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertOnlineInvite(invite: com.example.data.model.OnlineInviteEntity)
+
+  @Update
+  suspend fun updateOnlineInvite(invite: com.example.data.model.OnlineInviteEntity)
+
+  @Query("DELETE FROM online_invites WHERE inviteId = :inviteId")
+  suspend fun deleteOnlineInvite(inviteId: String)
+
+  // Filter memories by relationshipId
+  @Query("SELECT * FROM shared_memories WHERE relationshipId = :relId ORDER BY id DESC")
+  fun getSharedMemoriesForRelationship(relId: String): Flow<List<SharedMemoryEntity>>
+
+  // User Account & Authentication Persistence
+  @Query("SELECT * FROM user_accounts WHERE email = :email LIMIT 1")
+  suspend fun getUserAccountByEmail(email: String): com.example.data.model.UserAccountEntity?
+
+  @Query("SELECT * FROM user_accounts WHERE uid = :uid LIMIT 1")
+  suspend fun getUserAccountByUid(uid: String): com.example.data.model.UserAccountEntity?
+
+  @Query("SELECT * FROM user_accounts WHERE sessionToken = :token LIMIT 1")
+  suspend fun getUserAccountBySessionToken(token: String): com.example.data.model.UserAccountEntity?
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertUserAccount(account: com.example.data.model.UserAccountEntity)
+
+  @Update
+  suspend fun updateUserAccount(account: com.example.data.model.UserAccountEntity)
+
+  @Query("SELECT * FROM user_accounts ORDER BY createdAt DESC")
+  fun getAllUserAccounts(): Flow<List<com.example.data.model.UserAccountEntity>>
+
+  // Security Audit Logs
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertSecurityLog(log: com.example.data.model.SecurityAuditLogEntity): Long
+
+  @Query("SELECT * FROM security_audit_logs WHERE accountEmail = :email ORDER BY timestamp DESC LIMIT 20")
+  fun getSecurityLogsForAccount(email: String): Flow<List<com.example.data.model.SecurityAuditLogEntity>>
+
+  @Query("SELECT * FROM security_audit_logs ORDER BY timestamp DESC LIMIT 20")
+  fun getAllRecentSecurityLogs(): Flow<List<com.example.data.model.SecurityAuditLogEntity>>
 }

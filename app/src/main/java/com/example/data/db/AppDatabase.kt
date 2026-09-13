@@ -12,8 +12,13 @@ import com.example.data.model.GiftIdeaEntity
 import com.example.data.model.GiftReminderEntity
 import com.example.data.model.LoveBadgeEntity
 import com.example.data.model.MilestoneEntity
+import com.example.data.model.OnlineInviteEntity
+import com.example.data.model.OnlineRelationshipEntity
+import com.example.data.model.OnlineUserEntity
 import com.example.data.model.ReminderCadenceEntity
+import com.example.data.model.SecurityAuditLogEntity
 import com.example.data.model.SharedMemoryEntity
+import com.example.data.model.UserAccountEntity
 
 @Database(
   entities = [
@@ -26,9 +31,14 @@ import com.example.data.model.SharedMemoryEntity
     SharedMemoryEntity::class,
     LoveBadgeEntity::class,
     AnniversaryDateEntity::class,
-    GiftReminderEntity::class
+    GiftReminderEntity::class,
+    OnlineUserEntity::class,
+    OnlineRelationshipEntity::class,
+    OnlineInviteEntity::class,
+    UserAccountEntity::class,
+    SecurityAuditLogEntity::class
   ],
-  version = 7,
+  version = 10,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

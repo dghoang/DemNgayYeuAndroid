@@ -93,7 +93,10 @@ data class SharedMemoryEntity(
   val location: String = "",
   val isFavorite: Boolean = false,
   val anniversaryTitle: String = "18/12 - Ngày Yêu Nhau",
-  val createdAt: Long = System.currentTimeMillis()
+  val createdAt: Long = System.currentTimeMillis(),
+  val relationshipId: String? = null,
+  val authorId: String = "",
+  val isSynced: Boolean = true
 )
 
 @Entity(tableName = "love_badges")
@@ -124,7 +127,9 @@ data class AnniversaryDateEntity(
   val notificationEnabled: Boolean = true,
   val reminderDaysBefore: Int = 3,
   val daysRemaining: Int = 0,
-  val createdAt: Long = System.currentTimeMillis()
+  val createdAt: Long = System.currentTimeMillis(),
+  val relationshipId: String? = null,
+  val isSynced: Boolean = true
 )
 
 @Entity(tableName = "gift_reminders")
@@ -140,6 +145,118 @@ data class GiftReminderEntity(
   val alarmTimeMillis: Long? = null,
   val alarmTimeFormatted: String = "",
   val createdAt: Long = System.currentTimeMillis()
+)
+
+// Online 1-1 Set Love Models & Statuses
+object OnlineStatus {
+  const val SINGLE = "SINGLE"
+  const val PENDING_INVITE = "PENDING_INVITE"
+  const val COUPLED = "COUPLED"
+}
+
+object RelationshipStatus {
+  const val ACTIVE = "ACTIVE"
+  const val PENDING_BREAKUP = "PENDING_BREAKUP"
+  const val TERMINATED = "TERMINATED"
+}
+
+object InviteStatus {
+  const val PENDING = "PENDING"
+  const val ACCEPTED = "ACCEPTED"
+  const val REJECTED = "REJECTED"
+  const val CANCELLED = "CANCELLED"
+}
+
+@Entity(tableName = "online_users")
+data class OnlineUserEntity(
+  @PrimaryKey val uid: String,
+  val displayName: String = "Vô danh",
+  val email: String = "",
+  val coupleCode: String,
+  val partnerId: String? = null,
+  val relationshipId: String? = null,
+  val status: String = OnlineStatus.SINGLE,
+  val interestsCsv: String = "coffee,travel,technology,music",
+  val avatarUrl: String = "",
+  val gender: String = "MALE",
+  val birthDate: String = "",
+  val age: Int = 0,
+  val zodiac: String = "",
+  val bio: String = "",
+  val isProfileSetup: Boolean = false,
+  val isCurrentUser: Boolean = false
+) {
+  val interests: List<String>
+    get() = interestsCsv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+  val effectiveDisplayName: String
+    get() = if (!isProfileSetup || displayName.isBlank()) "Vô danh" else displayName
+}
+
+@Entity(tableName = "online_relationships")
+data class OnlineRelationshipEntity(
+  @PrimaryKey val relationshipId: String,
+  val user1: String,
+  val user2: String,
+  val startDate: Long,
+  val startDateText: String = "",
+  val status: String = RelationshipStatus.ACTIVE,
+  val breakupRequestedBy: String? = null,
+  val breakupRequestedAt: Long? = null,
+  val createdAt: Long = System.currentTimeMillis(),
+  val terminatedAt: Long? = null
+)
+
+@Entity(tableName = "online_invites")
+data class OnlineInviteEntity(
+  @PrimaryKey val inviteId: String,
+  val senderUid: String,
+  val senderName: String = "Vô danh",
+  val senderAvatar: String = "",
+  val senderCoupleCode: String,
+  val senderBirthDate: String = "",
+  val senderAge: Int = 0,
+  val senderZodiac: String = "",
+  val senderBio: String = "",
+  val targetCoupleCode: String,
+  val targetUid: String? = null,
+  val proposedStartDate: Long = System.currentTimeMillis(),
+  val proposedStartDateText: String = "",
+  val loveNote: String = "",
+  val status: String = InviteStatus.PENDING,
+  val createdAt: Long = System.currentTimeMillis()
+) {
+  val effectiveSenderName: String
+    get() = if (senderName.isBlank()) "Vô danh" else senderName
+}
+
+@Entity(tableName = "user_accounts")
+data class UserAccountEntity(
+  @PrimaryKey val uid: String,
+  val email: String,
+  val passwordHash: String,
+  val salt: String,
+  val displayName: String,
+  val coupleCode: String,
+  val avatarUrl: String = "",
+  val failedAttempts: Int = 0,
+  val lockoutUntil: Long = 0L,
+  val lastLoginAt: Long = 0L,
+  val createdAt: Long = System.currentTimeMillis(),
+  val securityQuestion: String = "Nơi đầu tiên hai bạn hẹn hò?",
+  val securityAnswerHash: String = "",
+  val appPin: String = "",
+  val isPinEnabled: Boolean = false,
+  val sessionToken: String = ""
+)
+
+@Entity(tableName = "security_audit_logs")
+data class SecurityAuditLogEntity(
+  @PrimaryKey(autoGenerate = true) val id: Long = 0,
+  val accountEmail: String,
+  val action: String, // "LOGIN_SUCCESS", "LOGIN_FAILED", "REGISTER", "LOCKOUT", "LOGOUT", "PASSWORD_CHANGED", "PIN_CHANGED", "PASSWORD_RESET"
+  val timestamp: Long = System.currentTimeMillis(),
+  val detail: String = ""
 )
 
 

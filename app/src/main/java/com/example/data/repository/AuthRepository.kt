@@ -1,0 +1,736 @@
+package com.example.data.repository
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.util.Log
+import com.example.data.db.InLoveDao
+import com.example.data.model.OnlineStatus
+import com.example.data.model.OnlineUserEntity
+import com.example.data.model.SecurityAuditLogEntity
+import com.example.data.model.UserAccountEntity
+import com.example.ui.util.AuthSecurityManager
+import com.example.ui.util.PasswordStrengthLevel
+import com.example.ui.util.ProfileUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+sealed class AuthState {
+  data object Unauthenticated : AuthState()
+  data class Authenticated(val account: UserAccountEntity) : AuthState()
+  data class PinLocked(val account: UserAccountEntity) : AuthState()
+}
+
+class AuthRepository(
+  private val dao: InLoveDao,
+  private val onlineRepo: OnlineCoupleRepository,
+  private val context: Context
+) {
+  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+  private val prefs: SharedPreferences =
+    context.getSharedPreferences("inlove_auth_prefs", Context.MODE_PRIVATE)
+
+  private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+  val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+  // Pre-configured demo accounts matching OnlineCoupleRepository
+  companion object {
+    const val DEMO_A_EMAIL = "hoang.inlove@gmail.com"
+    const val DEMO_A_PASS = "Hoang@2026"
+    const val DEMO_B_EMAIL = "khanhlinh.inlove@gmail.com"
+    const val DEMO_B_PASS = "Linh@2026"
+
+    private const val KEY_SESSION_TOKEN = "key_session_token"
+    private const val KEY_REMEMBER_ME = "key_remember_me"
+    private const val KEY_SAVED_EMAIL = "key_saved_email"
+  }
+
+  init {
+    scope.launch {
+      seedDefaultAccountsIfEmpty()
+      restoreSession()
+    }
+  }
+
+  /**
+   * Seeds demo accounts so testers can immediately log in or test 1-1 pairing.
+   */
+  private suspend fun seedDefaultAccountsIfEmpty() = withContext(Dispatchers.IO) {
+    val existingA = dao.getUserAccountByEmail(DEMO_A_EMAIL)
+    if (existingA == null) {
+      val saltA = AuthSecurityManager.generateSalt()
+      val hashA = AuthSecurityManager.hashPassword(DEMO_A_PASS, saltA)
+      val secAnswerHashA = AuthSecurityManager.hashSecurityAnswer("Đà Lạt", saltA)
+
+      val accountA = UserAccountEntity(
+        uid = OnlineCoupleRepository.USER_A_ID,
+        email = DEMO_A_EMAIL,
+        passwordHash = hashA,
+        salt = saltA,
+        displayName = OnlineCoupleRepository.USER_A_NAME,
+        coupleCode = OnlineCoupleRepository.USER_A_CODE,
+        avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop",
+        securityQuestion = AuthSecurityManager.SECURITY_QUESTIONS[0],
+        securityAnswerHash = secAnswerHashA,
+        appPin = "1234",
+        isPinEnabled = false
+      )
+      dao.insertUserAccount(accountA)
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = DEMO_A_EMAIL,
+          action = "REGISTER",
+          detail = "Khởi tạo tài khoản mẫu Hoàng"
+        )
+      )
+    }
+
+    val existingB = dao.getUserAccountByEmail(DEMO_B_EMAIL)
+    if (existingB == null) {
+      val saltB = AuthSecurityManager.generateSalt()
+      val hashB = AuthSecurityManager.hashPassword(DEMO_B_PASS, saltB)
+      val secAnswerHashB = AuthSecurityManager.hashSecurityAnswer("Hà Nội", saltB)
+
+      val accountB = UserAccountEntity(
+        uid = OnlineCoupleRepository.USER_B_ID,
+        email = DEMO_B_EMAIL,
+        passwordHash = hashB,
+        salt = saltB,
+        displayName = OnlineCoupleRepository.USER_B_NAME,
+        coupleCode = OnlineCoupleRepository.USER_B_CODE,
+        avatarUrl = "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600&auto=format&fit=crop",
+        securityQuestion = AuthSecurityManager.SECURITY_QUESTIONS[0],
+        securityAnswerHash = secAnswerHashB,
+        appPin = "1234",
+        isPinEnabled = false
+      )
+      dao.insertUserAccount(accountB)
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = DEMO_B_EMAIL,
+          action = "REGISTER",
+          detail = "Khởi tạo tài khoản mẫu Khánh Linh"
+        )
+      )
+    }
+  }
+
+  /**
+   * Attempts restoring persistent session if "Remember me" is enabled.
+   */
+  private suspend fun restoreSession() = withContext(Dispatchers.IO) {
+    val rememberMe = prefs.getBoolean(KEY_REMEMBER_ME, false)
+    val savedToken = prefs.getString(KEY_SESSION_TOKEN, null)
+
+    if (rememberMe && !savedToken.isNullOrEmpty()) {
+      val account = dao.getUserAccountBySessionToken(savedToken)
+      if (account != null) {
+        // If PIN is enabled, lock upon relaunch for security
+        if (account.isPinEnabled && account.appPin.isNotEmpty()) {
+          _authState.value = AuthState.PinLocked(account)
+        } else {
+          _authState.value = AuthState.Authenticated(account)
+        }
+        syncOnlineUserWithAccount(account)
+        return@withContext
+      }
+    }
+    _authState.value = AuthState.Unauthenticated
+  }
+
+  /**
+   * Sign In with Brute-Force lockout protection, cryptographic password checking,
+   * audit logging and session generation.
+   */
+  suspend fun login(
+    emailInput: String,
+    passwordInput: String,
+    rememberMe: Boolean
+  ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    val email = emailInput.trim().lowercase()
+    if (!AuthSecurityManager.isValidEmail(email)) {
+      return@withContext false to "Email không đúng định dạng. Vui lòng kiểm tra lại!"
+    }
+    if (passwordInput.isEmpty()) {
+      return@withContext false to "Vui lòng nhập mật khẩu!"
+    }
+
+    val account = dao.getUserAccountByEmail(email)
+    if (account == null) {
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = email,
+          action = "LOGIN_FAILED",
+          detail = "Đăng nhập thất bại: Tài khoản không tồn tại"
+        )
+      )
+      return@withContext false to "Tài khoản không tồn tại trong hệ thống. Vui lòng đăng ký!"
+    }
+
+    // Check Lockout
+    val lockoutStatus = AuthSecurityManager.checkLockoutStatus(
+      account.failedAttempts,
+      account.lockoutUntil
+    )
+    if (lockoutStatus.isLocked) {
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = email,
+          action = "LOCKOUT",
+          detail = "Từ chối đăng nhập: Tài khoản đang bị tạm khóa còn ${lockoutStatus.remainingSeconds}s"
+        )
+      )
+      return@withContext false to "Tài khoản bị tạm khóa vì nhập sai nhiều lần! Vui lòng thử lại sau ${lockoutStatus.remainingSeconds} giây."
+    }
+
+    // Verify Password Hash
+    val expectedHash = AuthSecurityManager.hashPassword(passwordInput, account.salt)
+    if (expectedHash != account.passwordHash) {
+      val newFailed = account.failedAttempts + 1
+      val isNowLocked = newFailed >= AuthSecurityManager.MAX_FAILED_ATTEMPTS
+      val newLockoutUntil = if (isNowLocked) {
+        System.currentTimeMillis() + AuthSecurityManager.LOCKOUT_DURATION_MILLIS
+      } else 0L
+
+      val updatedAccount = account.copy(
+        failedAttempts = newFailed,
+        lockoutUntil = newLockoutUntil
+      )
+      dao.updateUserAccount(updatedAccount)
+
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = email,
+          action = if (isNowLocked) "LOCKOUT" else "LOGIN_FAILED",
+          detail = if (isNowLocked) "Khóa tài khoản 3 phút do nhập sai 5 lần" else "Sai mật khẩu lần $newFailed"
+        )
+      )
+
+      return@withContext if (isNowLocked) {
+        false to "Bạn đã nhập sai 5 lần liên tiếp! Tài khoản bị tạm khóa 3 phút để đảm bảo an toàn."
+      } else {
+        val remaining = AuthSecurityManager.MAX_FAILED_ATTEMPTS - newFailed
+        false to "Mật khẩu không chính xác! Bạn còn $remaining lần thử trước khi tài khoản bị khóa."
+      }
+    }
+
+    // Login Success
+    val newSessionToken = AuthSecurityManager.generateSessionToken()
+    val updatedAccount = account.copy(
+      failedAttempts = 0,
+      lockoutUntil = 0L,
+      lastLoginAt = System.currentTimeMillis(),
+      sessionToken = newSessionToken
+    )
+    dao.updateUserAccount(updatedAccount)
+
+    // Save preferences
+    prefs.edit()
+      .putBoolean(KEY_REMEMBER_ME, rememberMe)
+      .putString(KEY_SESSION_TOKEN, if (rememberMe) newSessionToken else null)
+      .putString(KEY_SAVED_EMAIL, email)
+      .apply()
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = email,
+        action = "LOGIN_SUCCESS",
+        detail = "Đăng nhập thành công"
+      )
+    )
+
+    syncOnlineUserWithAccount(updatedAccount)
+
+    if (updatedAccount.isPinEnabled && updatedAccount.appPin.isNotEmpty()) {
+      _authState.value = AuthState.PinLocked(updatedAccount)
+    } else {
+      _authState.value = AuthState.Authenticated(updatedAccount)
+    }
+
+    return@withContext true to "Đăng nhập thành công! Chào mừng ${updatedAccount.displayName} 💕"
+  }
+
+  /**
+   * Fast Demo Login for immediate showcase & testing.
+   */
+  suspend fun loginDemoUser(userAOrB: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    seedDefaultAccountsIfEmpty()
+    val email = if (userAOrB == "A") DEMO_A_EMAIL else DEMO_B_EMAIL
+    val pass = if (userAOrB == "A") DEMO_A_PASS else DEMO_B_PASS
+    return@withContext login(email, pass, rememberMe = true)
+  }
+
+  /**
+   * User Registration with password policy enforcement, unique email checks,
+   * salt generation, security question setup and couple code generation.
+   */
+  suspend fun register(
+    displayNameInput: String,
+    emailInput: String,
+    passwordInput: String,
+    confirmPasswordInput: String,
+    securityQuestionInput: String,
+    securityAnswerInput: String
+  ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    val name = displayNameInput.trim()
+    val email = emailInput.trim().lowercase()
+
+    if (name.isEmpty()) {
+      return@withContext false to "Vui lòng nhập họ và tên hoặc biệt danh!"
+    }
+    if (!AuthSecurityManager.isValidEmail(email)) {
+      return@withContext false to "Địa chỉ Email không hợp lệ! Vui lòng kiểm tra lại."
+    }
+
+    // Check email uniqueness
+    val existing = dao.getUserAccountByEmail(email)
+    if (existing != null) {
+      return@withContext false to "Email này đã được sử dụng. Vui lòng đăng nhập hoặc dùng email khác!"
+    }
+
+    // Password Policy Check
+    val strength = AuthSecurityManager.evaluatePasswordStrength(passwordInput)
+    if (strength.level == PasswordStrengthLevel.VERY_WEAK || strength.level == PasswordStrengthLevel.WEAK) {
+      val missing = strength.missingRequirements.joinToString(", ")
+      return@withContext false to "Mật khẩu chưa đủ an toàn! $missing"
+    }
+
+    if (passwordInput != confirmPasswordInput) {
+      return@withContext false to "Mật khẩu xác nhận không khớp. Vui lòng nhập lại chính xác!"
+    }
+
+    if (securityAnswerInput.trim().isEmpty()) {
+      return@withContext false to "Vui lòng nhập câu trả lời bảo mật để phục hồi mật khẩu khi cần!"
+    }
+
+    // Generate cryptographic salt and hash
+    val salt = AuthSecurityManager.generateSalt()
+    val passwordHash = AuthSecurityManager.hashPassword(passwordInput, salt)
+    val answerHash = AuthSecurityManager.hashSecurityAnswer(securityAnswerInput, salt)
+    val coupleCode = ProfileUtils.generateRandomCoupleCode()
+    val uid = "user_${System.currentTimeMillis()}"
+    val sessionToken = AuthSecurityManager.generateSessionToken()
+
+    val newAccount = UserAccountEntity(
+      uid = uid,
+      email = email,
+      passwordHash = passwordHash,
+      salt = salt,
+      displayName = name,
+      coupleCode = coupleCode,
+      avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop",
+      failedAttempts = 0,
+      lockoutUntil = 0L,
+      lastLoginAt = System.currentTimeMillis(),
+      createdAt = System.currentTimeMillis(),
+      securityQuestion = securityQuestionInput.ifEmpty { AuthSecurityManager.SECURITY_QUESTIONS[0] },
+      securityAnswerHash = answerHash,
+      appPin = "",
+      isPinEnabled = false,
+      sessionToken = sessionToken
+    )
+
+    dao.insertUserAccount(newAccount)
+
+    // Also register an OnlineUserEntity so the account can immediately use Set Love 1-1
+    val onlineUser = OnlineUserEntity(
+      uid = uid,
+      displayName = name,
+      email = email,
+      coupleCode = coupleCode,
+      partnerId = null,
+      relationshipId = null,
+      status = OnlineStatus.SINGLE,
+      avatarUrl = newAccount.avatarUrl,
+      gender = "MALE",
+      birthDate = "",
+      age = 0,
+      zodiac = "",
+      bio = "Chào mừng bạn đến với InLove ✨",
+      isProfileSetup = true,
+      isCurrentUser = true
+    )
+    dao.insertOnlineUser(onlineUser)
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = email,
+        action = "REGISTER",
+        detail = "Đăng ký tài khoản thành công với mã $coupleCode"
+      )
+    )
+
+    // Save preferences
+    prefs.edit()
+      .putBoolean(KEY_REMEMBER_ME, true)
+      .putString(KEY_SESSION_TOKEN, sessionToken)
+      .putString(KEY_SAVED_EMAIL, email)
+      .apply()
+
+    syncOnlineUserWithAccount(newAccount)
+    _authState.value = AuthState.Authenticated(newAccount)
+
+    return@withContext true to "Tạo tài khoản thành công! Mã ghép đôi tình yêu của bạn là: $coupleCode"
+  }
+
+  /**
+   * Generates a 6-digit OTP for password recovery.
+   */
+  suspend fun requestPasswordResetOtp(emailInput: String): Pair<Boolean, Pair<String, String>> =
+    withContext(Dispatchers.IO) {
+      val email = emailInput.trim().lowercase()
+      val account = dao.getUserAccountByEmail(email)
+      if (account == null) {
+        return@withContext false to ("" to "Không tìm thấy tài khoản tương ứng với email này!")
+      }
+
+      val otp = AuthSecurityManager.generateOtpCode()
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = email,
+          action = "PASSWORD_RESET",
+          detail = "Yêu cầu mã xác thực đặt lại mật khẩu OTP: $otp"
+        )
+      )
+      return@withContext true to (otp to "Mã xác thực bảo mật OTP 6 số đã được tạo thành công.")
+    }
+
+  /**
+   * Resets password using OTP code and enforces new password strength.
+   */
+  suspend fun resetPasswordWithOtp(
+    emailInput: String,
+    enteredOtp: String,
+    expectedOtp: String,
+    newPasswordInput: String,
+    confirmPasswordInput: String
+  ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    val email = emailInput.trim().lowercase()
+    val account = dao.getUserAccountByEmail(email) ?: return@withContext false to "Tài khoản không tồn tại!"
+
+    if (enteredOtp.trim() != expectedOtp.trim()) {
+      return@withContext false to "Mã xác thực OTP không chính xác!"
+    }
+
+    val strength = AuthSecurityManager.evaluatePasswordStrength(newPasswordInput)
+    if (strength.level == PasswordStrengthLevel.VERY_WEAK || strength.level == PasswordStrengthLevel.WEAK) {
+      return@withContext false to "Mật khẩu mới chưa đủ mạnh. ${strength.missingRequirements.joinToString(", ")}"
+    }
+
+    if (newPasswordInput != confirmPasswordInput) {
+      return@withContext false to "Mật khẩu mới xác nhận không khớp!"
+    }
+
+    val newSalt = AuthSecurityManager.generateSalt()
+    val newHash = AuthSecurityManager.hashPassword(newPasswordInput, newSalt)
+
+    val updated = account.copy(
+      passwordHash = newHash,
+      salt = newSalt,
+      failedAttempts = 0,
+      lockoutUntil = 0L
+    )
+    dao.updateUserAccount(updated)
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = email,
+        action = "PASSWORD_RESET",
+        detail = "Đặt lại mật khẩu thành công qua OTP"
+      )
+    )
+
+    return@withContext true to "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới."
+  }
+
+  /**
+   * Resets password using Security Question Answer.
+   */
+  suspend fun resetPasswordWithSecurityAnswer(
+    emailInput: String,
+    securityAnswerInput: String,
+    newPasswordInput: String,
+    confirmPasswordInput: String
+  ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    val email = emailInput.trim().lowercase()
+    val account = dao.getUserAccountByEmail(email) ?: return@withContext false to "Tài khoản không tồn tại!"
+
+    val expectedAnswerHash = account.securityAnswerHash
+    val providedHash = AuthSecurityManager.hashSecurityAnswer(securityAnswerInput, account.salt)
+
+    if (expectedAnswerHash.isNotEmpty() && expectedAnswerHash != providedHash) {
+      return@withContext false to "Câu trả lời bảo mật không chính xác!"
+    }
+
+    val strength = AuthSecurityManager.evaluatePasswordStrength(newPasswordInput)
+    if (strength.level == PasswordStrengthLevel.VERY_WEAK || strength.level == PasswordStrengthLevel.WEAK) {
+      return@withContext false to "Mật khẩu mới chưa đủ an toàn! ${strength.missingRequirements.joinToString(", ")}"
+    }
+
+    if (newPasswordInput != confirmPasswordInput) {
+      return@withContext false to "Mật khẩu xác nhận không khớp!"
+    }
+
+    val newSalt = AuthSecurityManager.generateSalt()
+    val newHash = AuthSecurityManager.hashPassword(newPasswordInput, newSalt)
+    val newAnswerHash = AuthSecurityManager.hashSecurityAnswer(securityAnswerInput, newSalt)
+
+    val updated = account.copy(
+      passwordHash = newHash,
+      salt = newSalt,
+      securityAnswerHash = newAnswerHash,
+      failedAttempts = 0,
+      lockoutUntil = 0L
+    )
+    dao.updateUserAccount(updated)
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = email,
+        action = "PASSWORD_RESET",
+        detail = "Đặt lại mật khẩu qua câu hỏi bảo mật"
+      )
+    )
+
+    return@withContext true to "Đặt lại mật khẩu thành công! Hãy đăng nhập ngay."
+  }
+
+  /**
+   * Change password from Settings (requires old password).
+   */
+  suspend fun changePassword(
+    oldPasswordInput: String,
+    newPasswordInput: String,
+    confirmPasswordInput: String
+  ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    val currentAuth = _authState.value
+    val currentAccount = when (currentAuth) {
+      is AuthState.Authenticated -> currentAuth.account
+      is AuthState.PinLocked -> currentAuth.account
+      else -> return@withContext false to "Bạn chưa đăng nhập!"
+    }
+
+    val oldHash = AuthSecurityManager.hashPassword(oldPasswordInput, currentAccount.salt)
+    if (oldHash != currentAccount.passwordHash) {
+      return@withContext false to "Mật khẩu hiện tại không chính xác!"
+    }
+
+    val strength = AuthSecurityManager.evaluatePasswordStrength(newPasswordInput)
+    if (strength.level == PasswordStrengthLevel.VERY_WEAK || strength.level == PasswordStrengthLevel.WEAK) {
+      return@withContext false to "Mật khẩu mới chưa đủ mạnh. ${strength.missingRequirements.joinToString(", ")}"
+    }
+
+    if (newPasswordInput != confirmPasswordInput) {
+      return@withContext false to "Mật khẩu mới xác nhận không khớp!"
+    }
+
+    val newSalt = AuthSecurityManager.generateSalt()
+    val newHash = AuthSecurityManager.hashPassword(newPasswordInput, newSalt)
+    val updated = currentAccount.copy(passwordHash = newHash, salt = newSalt)
+    dao.updateUserAccount(updated)
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = currentAccount.email,
+        action = "PASSWORD_CHANGED",
+        detail = "Đổi mật khẩu thành công từ cài đặt"
+      )
+    )
+
+    _authState.value = AuthState.Authenticated(updated)
+    return@withContext true to "Đã cập nhật mật khẩu mới an toàn thành công!"
+  }
+
+  /**
+   * Sets or updates 4-digit PIN for app lock.
+   */
+  suspend fun setAppPin(pin: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    if (pin.length != 4 || !pin.all { it.isDigit() }) {
+      return@withContext false to "Mã PIN phải gồm đúng 4 chữ số!"
+    }
+    val currentAuth = _authState.value
+    val currentAccount = when (currentAuth) {
+      is AuthState.Authenticated -> currentAuth.account
+      is AuthState.PinLocked -> currentAuth.account
+      else -> return@withContext false to "Bạn chưa đăng nhập!"
+    }
+
+    val updated = currentAccount.copy(appPin = pin, isPinEnabled = true)
+    dao.updateUserAccount(updated)
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = currentAccount.email,
+        action = "PIN_CHANGED",
+        detail = "Kích hoạt và cập nhật mã PIN bảo vệ ứng dụng"
+      )
+    )
+
+    _authState.value = AuthState.Authenticated(updated)
+    return@withContext true to "Đã thiết lập mã PIN 4 số bảo vệ ứng dụng thành công!"
+  }
+
+  /**
+   * Toggles PIN lock feature on/off.
+   */
+  suspend fun togglePinEnabled(enabled: Boolean): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    val currentAuth = _authState.value
+    val currentAccount = when (currentAuth) {
+      is AuthState.Authenticated -> currentAuth.account
+      is AuthState.PinLocked -> currentAuth.account
+      else -> return@withContext false to "Bạn chưa đăng nhập!"
+    }
+
+    if (enabled && currentAccount.appPin.isEmpty()) {
+      return@withContext false to "Vui lòng cài đặt mã PIN trước khi bật khóa ứng dụng!"
+    }
+
+    val updated = currentAccount.copy(isPinEnabled = enabled)
+    dao.updateUserAccount(updated)
+    _authState.value = AuthState.Authenticated(updated)
+
+    dao.insertSecurityLog(
+      SecurityAuditLogEntity(
+        accountEmail = currentAccount.email,
+        action = "PIN_CHANGED",
+        detail = if (enabled) "Bật khóa mã PIN ứng dụng" else "Tắt khóa mã PIN ứng dụng"
+      )
+    )
+
+    return@withContext true to if (enabled) "Đã bật bảo vệ ứng dụng bằng mã PIN!" else "Đã tắt bảo vệ bằng mã PIN."
+  }
+
+  /**
+   * Unlocks app using PIN.
+   */
+  fun unlockWithPin(pinInput: String): Boolean {
+    val currentAuth = _authState.value
+    val currentAccount = when (currentAuth) {
+      is AuthState.PinLocked -> currentAuth.account
+      is AuthState.Authenticated -> currentAuth.account
+      else -> return false
+    }
+
+    if (pinInput == currentAccount.appPin) {
+      _authState.value = AuthState.Authenticated(currentAccount)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Fallback unlock using account password.
+   */
+  fun unlockWithAccountPassword(passwordInput: String): Boolean {
+    val currentAuth = _authState.value
+    val currentAccount = when (currentAuth) {
+      is AuthState.PinLocked -> currentAuth.account
+      is AuthState.Authenticated -> currentAuth.account
+      else -> return false
+    }
+
+    val hash = AuthSecurityManager.hashPassword(passwordInput, currentAccount.salt)
+    if (hash == currentAccount.passwordHash) {
+      _authState.value = AuthState.Authenticated(currentAccount)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Manually locks the app with PIN.
+   */
+  fun lockApp() {
+    val current = _authState.value
+    if (current is AuthState.Authenticated && current.account.isPinEnabled && current.account.appPin.isNotEmpty()) {
+      _authState.value = AuthState.PinLocked(current.account)
+    }
+  }
+
+  /**
+   * Secure Logout: clears tokens, resets state to Unauthenticated.
+   */
+  suspend fun logout() = withContext(Dispatchers.IO) {
+    val current = _authState.value
+    val email = when (current) {
+      is AuthState.Authenticated -> current.account.email
+      is AuthState.PinLocked -> current.account.email
+      else -> ""
+    }
+
+    if (email.isNotEmpty()) {
+      val account = dao.getUserAccountByEmail(email)
+      if (account != null) {
+        dao.updateUserAccount(account.copy(sessionToken = ""))
+      }
+      dao.insertSecurityLog(
+        SecurityAuditLogEntity(
+          accountEmail = email,
+          action = "LOGOUT",
+          detail = "Đăng xuất tài khoản an toàn"
+        )
+      )
+    }
+
+    prefs.edit()
+      .remove(KEY_SESSION_TOKEN)
+      .putBoolean(KEY_REMEMBER_ME, false)
+      .apply()
+
+    _authState.value = AuthState.Unauthenticated
+  }
+
+  /**
+   * Gets audit logs for account.
+   */
+  fun getAuditLogsForCurrentAccount(): Flow<List<SecurityAuditLogEntity>> {
+    val current = _authState.value
+    val email = when (current) {
+      is AuthState.Authenticated -> current.account.email
+      is AuthState.PinLocked -> current.account.email
+      else -> ""
+    }
+    return dao.getSecurityLogsForAccount(email)
+  }
+
+  private suspend fun syncOnlineUserWithAccount(account: UserAccountEntity) {
+    val existingOnlineUser = dao.getOnlineUserByUidSync(account.uid)
+    if (existingOnlineUser == null) {
+      val newOnlineUser = OnlineUserEntity(
+        uid = account.uid,
+        displayName = account.displayName,
+        email = account.email,
+        coupleCode = account.coupleCode,
+        partnerId = null,
+        relationshipId = null,
+        status = OnlineStatus.SINGLE,
+        avatarUrl = account.avatarUrl,
+        gender = "MALE",
+        birthDate = "",
+        age = 0,
+        zodiac = "",
+        bio = "Chào mừng bạn đến với InLove ✨",
+        isProfileSetup = true,
+        isCurrentUser = true
+      )
+      dao.insertOnlineUser(newOnlineUser)
+    } else {
+      dao.updateOnlineUser(
+        existingOnlineUser.copy(
+          displayName = account.displayName,
+          email = account.email,
+          coupleCode = account.coupleCode,
+          avatarUrl = account.avatarUrl.ifEmpty { existingOnlineUser.avatarUrl },
+          isCurrentUser = true
+        )
+      )
+    }
+    onlineRepo.ensureInitialized()
+  }
+}

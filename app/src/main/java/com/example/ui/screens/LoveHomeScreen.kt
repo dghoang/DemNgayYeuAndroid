@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -131,6 +132,12 @@ fun LoveHomeScreen(
   val loveTitle by viewModel.loveTitle.collectAsState()
   val loveDays by viewModel.loveDays.collectAsState()
   val anniversaryDate by viewModel.anniversaryDate.collectAsState()
+
+  // Online 1-1 Set Love States
+  val currentOnlineUser by viewModel.currentOnlineUser.collectAsState()
+  val partnerUser by viewModel.partnerOnlineUser.collectAsState()
+  val relationshipStatus by viewModel.relationshipStatus.collectAsState()
+  val incomingInvite by viewModel.incomingInvite.collectAsState()
 
   val selectedWallpaperUrl by viewModel.selectedWallpaperUrl.collectAsState()
   val appLanguage by viewModel.appLanguage.collectAsState()
@@ -342,6 +349,139 @@ fun LoveHomeScreen(
 
       Spacer(modifier = Modifier.height(10.dp))
 
+      // Dynamic Banner 1: Profile Setup Warning (Anonymous State)
+      if (!currentOnlineUser.isProfileSetup) {
+        Surface(
+          shape = RoundedCornerShape(16.dp),
+          color = Color(0xFFFFF3E0),
+          border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB74D)),
+          shadowElevation = 2.dp,
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { viewModel.openEditProfileDialog() }
+            .padding(bottom = 8.dp)
+            .testTag("home_anonymous_profile_banner")
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Icon(
+              imageVector = Icons.Default.AutoAwesome,
+              contentDescription = null,
+              tint = Color(0xFFE65100),
+              modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Hồ sơ của bạn đang là \"Vô danh\"",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color(0xFFBF360C)
+              )
+              Text(
+                text = "Bấm vào đây để nhập tên & ngày sinh (tuổi & cung hoàng đạo sẽ tự động tính!)",
+                fontSize = 11.sp,
+                color = Color.DarkGray
+              )
+            }
+          }
+        }
+      }
+
+      // Dynamic Banner 2: Incoming Set Love Invite Notice
+      if (incomingInvite != null) {
+        Surface(
+          shape = RoundedCornerShape(16.dp),
+          color = Color(0xFFFFF0F5),
+          border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFFF4081)),
+          shadowElevation = 3.dp,
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { viewModel.openPairingScreen() }
+            .padding(bottom = 8.dp)
+            .testTag("home_incoming_invite_banner")
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Icon(
+              imageVector = Icons.Default.Favorite,
+              contentDescription = null,
+              tint = Color(0xFFE91E63),
+              modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "💌 Lời mời kết đôi từ ${incomingInvite!!.effectiveSenderName}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color(0xFF880E4F)
+              )
+              Text(
+                text = "Bấm để kiểm tra danh tính và ngày yêu trước khi đồng ý 💕",
+                fontSize = 11.sp,
+                color = Color(0xFFC2185B)
+              )
+            }
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = Color(0xFFE91E63)
+            ) {
+              Text(
+                text = "Xem",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              )
+            }
+          }
+        }
+      } else if (relationshipStatus != com.example.data.model.OnlineStatus.COUPLED) {
+        // Dynamic Banner 3: Prompt to Pair 1-1
+        Surface(
+          shape = RoundedCornerShape(16.dp),
+          color = Color.White.copy(alpha = 0.95f),
+          border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFC6DB)),
+          shadowElevation = 2.dp,
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { viewModel.openPairingScreen() }
+            .padding(bottom = 8.dp)
+            .testTag("home_prompt_pair_banner")
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Icon(
+              imageVector = Icons.Default.VolunteerActivism,
+              contentDescription = null,
+              tint = Color(0xFFE91E63),
+              modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "Ghép đôi 1-1 (Set Love) để đồng bộ ngày yêu cùng người ấy",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = Color(0xFF880E4F),
+              modifier = Modifier.weight(1f)
+            )
+            Text(
+              text = "Bấm để ghép >",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = Color(0xFFE91E63)
+            )
+          }
+        }
+      }
+
       // Romantic Pastel Streak Badge
       Surface(
         shape = RoundedCornerShape(50.dp),
@@ -509,6 +649,8 @@ fun LoveHomeScreen(
           .fillMaxWidth()
           .testTag("couple_bottom_section")
       ) {
+        val isCoupled = relationshipStatus == com.example.data.model.OnlineStatus.COUPLED && partnerUser != null
+
         Row(
           modifier = Modifier
             .fillMaxWidth()
@@ -516,12 +658,13 @@ fun LoveHomeScreen(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          // Left: Boy Profile
+          // Left: Current User Profile (User can only edit their own profile)
           Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
               .weight(1f)
-              .clickable { viewModel.openEditCoupleDialog() }
+              .clickable { viewModel.openEditProfileDialog() }
+              .testTag("current_user_profile_col")
           ) {
             Box(
               modifier = Modifier.size(76.dp),
@@ -535,13 +678,13 @@ fun LoveHomeScreen(
                   .shadow(4.dp, CircleShape)
               ) {
                 AsyncImage(
-                  model = boyAvatarUrl,
-                  contentDescription = boyName,
+                  model = currentOnlineUser.avatarUrl.ifEmpty { boyAvatarUrl },
+                  contentDescription = currentOnlineUser.effectiveDisplayName,
                   contentScale = ContentScale.Crop,
                   modifier = Modifier.fillMaxSize()
                 )
               }
-              // Mini floating heart badge
+              // Mini edit badge
               Box(
                 modifier = Modifier
                   .size(22.dp)
@@ -552,8 +695,8 @@ fun LoveHomeScreen(
                 contentAlignment = Alignment.Center
               ) {
                 Icon(
-                  imageVector = Icons.Rounded.Favorite,
-                  contentDescription = null,
+                  imageVector = Icons.Default.Edit,
+                  contentDescription = "Chỉnh sửa hồ sơ",
                   tint = Color(0xFF00ACC1),
                   modifier = Modifier.size(12.dp)
                 )
@@ -563,7 +706,7 @@ fun LoveHomeScreen(
             Spacer(modifier = Modifier.height(5.dp))
 
             Text(
-              text = boyName,
+              text = currentOnlineUser.effectiveDisplayName,
               fontSize = 15.sp,
               fontWeight = FontWeight.Bold,
               color = Color(0xFF26071B)
@@ -571,42 +714,57 @@ fun LoveHomeScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Badges: Soft Pastel Age & Zodiac
+            // Badges: Soft Pastel Age & Zodiac (Auto calculated)
             Row(
               horizontalArrangement = Arrangement.spacedBy(4.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Surface(
-                shape = RoundedCornerShape(50.dp),
-                color = Color(0xFFE0F7FA)
-              ) {
-                Text(
-                  text = "♂ $boyAge",
-                  color = Color(0xFF00838F),
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                )
-              }
+              if (!currentOnlineUser.isProfileSetup) {
+                Surface(
+                  shape = RoundedCornerShape(50.dp),
+                  color = Color(0xFFFFEBEE)
+                ) {
+                  Text(
+                    text = "Vô danh",
+                    color = Color(0xFFC62828),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                  )
+                }
+              } else {
+                Surface(
+                  shape = RoundedCornerShape(50.dp),
+                  color = Color(0xFFE0F7FA)
+                ) {
+                  Text(
+                    text = if (currentOnlineUser.age > 0) "${currentOnlineUser.age}t" else "$boyAge t",
+                    color = Color(0xFF00838F),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                  )
+                }
 
-              Surface(
-                shape = RoundedCornerShape(50.dp),
-                color = Color(0xFFF3E5F5)
-              ) {
-                Text(
-                  text = "♎ $boyZodiac",
-                  color = Color(0xFF7B1FA2),
-                  fontSize = 10.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                )
+                Surface(
+                  shape = RoundedCornerShape(50.dp),
+                  color = Color(0xFFF3E5F5)
+                ) {
+                  Text(
+                    text = currentOnlineUser.zodiac.ifEmpty { boyZodiac },
+                    color = Color(0xFF7B1FA2),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                  )
+                }
               }
             }
 
             Spacer(modifier = Modifier.height(3.dp))
 
             Text(
-              text = boyBirthDate,
+              text = if (currentOnlineUser.birthDate.isNotBlank()) currentOnlineUser.birthDate else "Bấm để cài đặt",
               fontSize = 11.sp,
               fontWeight = FontWeight.Medium,
               color = Color(0xFF6B2B50)
@@ -648,7 +806,12 @@ fun LoveHomeScreen(
                 .shadow(6.dp, CircleShape)
                 .clickable {
                   viewModel.triggerFloatingHearts()
-                  viewModel.showToast("Trái tim kết nối $boyName & $girlName ❤️")
+                  if (isCoupled) {
+                    viewModel.showToast("Trái tim kết nối ${currentOnlineUser.effectiveDisplayName} & ${partnerUser?.displayName} ❤️")
+                  } else {
+                    viewModel.showToast("Hãy ghép đôi 1-1 để đồng bộ nhịp tim với người ấy 💕")
+                    viewModel.openPairingScreen()
+                  }
                 }
                 .testTag("btn_center_heart"),
               contentAlignment = Alignment.Center
@@ -662,101 +825,167 @@ fun LoveHomeScreen(
             }
           }
 
-          // Right: Girl Profile
-          Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-              .weight(1f)
-              .clickable { viewModel.openEditCoupleDialog() }
-          ) {
-            Box(
-              modifier = Modifier.size(76.dp),
-              contentAlignment = Alignment.Center
+          // Right: Partner Profile (if coupled) OR Waiting / Pairing Action (if single)
+          if (isCoupled && partnerUser != null) {
+            Column(
+              horizontalAlignment = Alignment.CenterHorizontally,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { viewModel.openPairingScreen() }
+                .testTag("partner_user_profile_col")
             ) {
               Box(
-                modifier = Modifier
-                  .size(72.dp)
-                  .clip(CircleShape)
-                  .border(2.5.dp, Color(0xFFFF80AB), CircleShape)
-                  .shadow(4.dp, CircleShape)
-              ) {
-                AsyncImage(
-                  model = girlAvatarUrl,
-                  contentDescription = girlName,
-                  contentScale = ContentScale.Crop,
-                  modifier = Modifier.fillMaxSize()
-                )
-              }
-              // Mini floating heart badge
-              Box(
-                modifier = Modifier
-                  .size(22.dp)
-                  .align(Alignment.BottomEnd)
-                  .clip(CircleShape)
-                  .background(Color(0xFFFCE4EC))
-                  .border(1.5.dp, Color.White, CircleShape),
+                modifier = Modifier.size(76.dp),
                 contentAlignment = Alignment.Center
               ) {
-                Icon(
-                  imageVector = Icons.Rounded.Favorite,
-                  contentDescription = null,
-                  tint = Color(0xFFFF4081),
-                  modifier = Modifier.size(12.dp)
-                )
+                Box(
+                  modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .border(2.5.dp, Color(0xFFFF80AB), CircleShape)
+                    .shadow(4.dp, CircleShape)
+                ) {
+                  AsyncImage(
+                    model = partnerUser!!.avatarUrl.ifEmpty { girlAvatarUrl },
+                    contentDescription = partnerUser!!.displayName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                  )
+                }
+                // Mini floating heart badge
+                Box(
+                  modifier = Modifier
+                    .size(22.dp)
+                    .align(Alignment.BottomEnd)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFCE4EC))
+                    .border(1.5.dp, Color.White, CircleShape),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(
+                    imageVector = Icons.Rounded.Favorite,
+                    contentDescription = null,
+                    tint = Color(0xFFFF4081),
+                    modifier = Modifier.size(12.dp)
+                  )
+                }
               }
+
+              Spacer(modifier = Modifier.height(5.dp))
+
+              Text(
+                text = partnerUser!!.displayName,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF26071B)
+              )
+
+              Spacer(modifier = Modifier.height(4.dp))
+
+              // Badges: Soft Pastel Age & Zodiac
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Surface(
+                  shape = RoundedCornerShape(50.dp),
+                  color = Color(0xFFFCE4EC)
+                ) {
+                  Text(
+                    text = if (partnerUser!!.age > 0) "${partnerUser!!.age}t" else "$girlAge t",
+                    color = Color(0xFFC2185B),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                  )
+                }
+
+                Surface(
+                  shape = RoundedCornerShape(50.dp),
+                  color = Color(0xFFFFF0F5)
+                ) {
+                  Text(
+                    text = partnerUser!!.zodiac.ifEmpty { girlZodiac },
+                    color = Color(0xFFAD1457),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                  )
+                }
+              }
+
+              Spacer(modifier = Modifier.height(3.dp))
+
+              Text(
+                text = partnerUser!!.birthDate.ifEmpty { girlBirthDate },
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF6B2B50)
+              )
             }
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-              text = girlName,
-              fontSize = 15.sp,
-              fontWeight = FontWeight.Bold,
-              color = Color(0xFF26071B)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Badges: Soft Pastel Age & Zodiac
-            Row(
-              horizontalArrangement = Arrangement.spacedBy(4.dp),
-              verticalAlignment = Alignment.CenterVertically
+          } else {
+            // Uncoupled / Waiting Partner State
+            Column(
+              horizontalAlignment = Alignment.CenterHorizontally,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { viewModel.openPairingScreen() }
+                .testTag("partner_waiting_placeholder_col")
             ) {
-              Surface(
-                shape = RoundedCornerShape(50.dp),
-                color = Color(0xFFFCE4EC)
+              Box(
+                modifier = Modifier.size(76.dp),
+                contentAlignment = Alignment.Center
               ) {
-                Text(
-                  text = "♀ $girlAge",
-                  color = Color(0xFFC2185B),
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                )
+                Box(
+                  modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFFF0F5))
+                    .border(2.dp, Color(0xFFFF80AB), CircleShape),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Thêm người ấy",
+                    tint = Color(0xFFE91E63),
+                    modifier = Modifier.size(32.dp)
+                  )
+                }
               }
+
+              Spacer(modifier = Modifier.height(5.dp))
+
+              Text(
+                text = "Chờ người ấy",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF880E4F)
+              )
+
+              Spacer(modifier = Modifier.height(4.dp))
 
               Surface(
                 shape = RoundedCornerShape(50.dp),
-                color = Color(0xFFFFF0F5)
+                color = Color(0xFFFFEBEE)
               ) {
                 Text(
-                  text = "♋ $girlZodiac",
-                  color = Color(0xFFAD1457),
+                  text = "+ Ghép Đôi 1-1",
+                  color = Color(0xFFE91E63),
                   fontSize = 10.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                  fontWeight = FontWeight.Bold,
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
               }
+
+              Spacer(modifier = Modifier.height(3.dp))
+
+              Text(
+                text = "Nhập mã hoặc link",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color.Gray
+              )
             }
-
-            Spacer(modifier = Modifier.height(3.dp))
-
-            Text(
-              text = girlBirthDate,
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Medium,
-              color = Color(0xFF6B2B50)
-            )
           }
         }
       }

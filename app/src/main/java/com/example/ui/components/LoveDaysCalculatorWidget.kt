@@ -1,6 +1,5 @@
 package com.example.ui.components
 
-import android.app.DatePickerDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -210,6 +209,7 @@ fun LoveDaysCalculatorWidget(
 ) {
   val context = LocalContext.current
   var showManualInputDialog by remember { mutableStateOf(false) }
+  var showM3DatePicker by remember { mutableStateOf(false) }
 
   // Live seconds ticker for romantic immersion
   var currentTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -225,38 +225,6 @@ fun LoveDaysCalculatorWidget(
   }
 
   val isVietnamese = language == AppLanguage.VI
-
-  // Function to launch standard Android DatePickerDialog
-  val openNativeDatePicker = {
-    val formats = listOf("dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy")
-    var initYear = 2022
-    var initMonth = 11 // December (0-indexed)
-    var initDay = 18
-    for (fmt in formats) {
-      try {
-        val sdf = SimpleDateFormat(fmt, Locale.getDefault())
-        val parsed = sdf.parse(anniversaryDate)
-        if (parsed != null) {
-          val cal = Calendar.getInstance().apply { time = parsed }
-          initYear = cal.get(Calendar.YEAR)
-          initMonth = cal.get(Calendar.MONTH)
-          initDay = cal.get(Calendar.DAY_OF_MONTH)
-          break
-        }
-      } catch (_: Exception) {}
-    }
-
-    DatePickerDialog(
-      context,
-      { _, year, month, dayOfMonth ->
-        val formatted = String.format(Locale.getDefault(), "%02d/%02d/%04d", dayOfMonth, month + 1, year)
-        onUpdateAnniversaryDate(formatted)
-      },
-      initYear,
-      initMonth,
-      initDay
-    ).show()
-  }
 
   Card(
     shape = RoundedCornerShape(24.dp),
@@ -315,13 +283,13 @@ fun LoveDaysCalculatorWidget(
           }
         }
 
-        // Action button to trigger native date picker
+        // Action button to trigger Material 3 date picker
         Surface(
           shape = RoundedCornerShape(50.dp),
           color = Color(0xFFFFF0F5),
           border = BorderStroke(1.dp, Color(0xFFFFC6DB)),
           modifier = Modifier
-            .clickable { openNativeDatePicker() }
+            .clickable { showM3DatePicker = true }
             .testTag("btn_widget_pick_date")
         ) {
           Row(
@@ -352,7 +320,7 @@ fun LoveDaysCalculatorWidget(
         border = BorderStroke(1.dp, Color(0xFFFFD1DF)),
         modifier = Modifier
           .fillMaxWidth()
-          .clickable { openNativeDatePicker() }
+          .clickable { showM3DatePicker = true }
       ) {
         Row(
           modifier = Modifier
@@ -637,6 +605,19 @@ fun LoveDaysCalculatorWidget(
     }
   }
 
+  // Material 3 DatePicker Dialog for selecting relationship start date
+  if (showM3DatePicker) {
+    InLoveDatePickerDialog(
+      title = if (isVietnamese) "Chọn Ngày Bắt Đầu Yêu" else "Select Relationship Start Date",
+      initialDateStr = anniversaryDate,
+      quickPresets = DatePickerPresets.relationshipStartDatePresets(),
+      onDateSelected = { _, formattedDate ->
+        onUpdateAnniversaryDate(formattedDate)
+      },
+      onDismiss = { showM3DatePicker = false }
+    )
+  }
+
   // Optional Manual Input Dialog for users wanting to type date directly
   if (showManualInputDialog) {
     ManualDateInputDialog(
@@ -767,20 +748,18 @@ private fun ManualDateInputDialog(
           color = Color(0xFF6B2B50)
         )
 
-        OutlinedTextField(
+        InLoveDatePickerField(
           value = dateText,
           onValueChange = {
             dateText = it
             isError = false
           },
-          label = {
-            Text(if (isVietnamese) "Ngày bắt đầu (dd/MM/yyyy)" else "Date (dd/MM/yyyy)")
-          },
-          isError = isError,
-          singleLine = true,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_anniversary_text")
+          label = if (isVietnamese) "Ngày bắt đầu (dd/MM/yyyy) *" else "Start Date (dd/MM/yyyy) *",
+          placeholder = "18/12/2022",
+          dialogTitle = if (isVietnamese) "Chọn Ngày Bắt Đầu Yêu" else "Select Start Date",
+          quickPresets = DatePickerPresets.relationshipStartDatePresets(),
+          helperText = DatePickerUtils.getFriendlyDateDescription(dateText),
+          testTag = "input_anniversary_text"
         )
 
         // Presets

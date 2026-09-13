@@ -115,6 +115,9 @@ fun GiftScreen(
   val checklistItems by viewModel.checklistItems.collectAsState()
   val giftReminders by viewModel.giftReminders.collectAsState()
   val selectedCategory by viewModel.giftCategory.collectAsState()
+  val mutualInterests by viewModel.mutualInterests.collectAsState()
+  val partnerUser by viewModel.partnerOnlineUser.collectAsState()
+  val relationshipStatus by viewModel.relationshipStatus.collectAsState()
 
   var giftItemToDelete by remember { mutableStateOf<ChecklistItemEntity?>(null) }
   var reminderToDelete by remember { mutableStateOf<GiftReminderEntity?>(null) }
@@ -277,6 +280,103 @@ fun GiftScreen(
             trackColor = SurfaceContainerHighest,
             strokeCap = StrokeCap.Round
           )
+        }
+      }
+    }
+
+    // Mutual Interests Recommendation (interests_A ∩ interests_B)
+    item {
+      Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F9)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF80AB).copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth().testTag("mutual_interests_gift_card")
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = Color(0xFFE91E63),
+                modifier = Modifier.size(18.dp)
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = "Gợi Ý Theo Sở Thích Chung",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = Color(0xFF880E4F)
+              )
+            }
+
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = Color(0xFFFFEBEE)
+            ) {
+              Text(
+                text = "interests_A ∩ B",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFC2185B),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          if (mutualInterests.isNotEmpty()) {
+            Text(
+              text = "Hai bạn cùng yêu thích: ${mutualInterests.joinToString(" • ")}",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = Color(0xFF4A148C)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Suggestions based on intersection
+            val suggestions = listOf(
+              "Buổi hòa nhạc Acoustic cuối tuần" to "Địa điểm hẹn hò",
+              "Bộ tách gốm cà phê đôi nghệ thuật" to "Kỷ vật Handmade",
+              "Album Photobook kỷ niệm hành trình yêu" to "Quà lãng mạn"
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+              suggestions.forEach { (title, tag) ->
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                      imageVector = Icons.Default.Favorite,
+                      contentDescription = null,
+                      tint = Color(0xFFFF4081),
+                      modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                  }
+                  Text(text = tag, fontSize = 10.sp, color = Color.Gray)
+                }
+              }
+            }
+          } else {
+            Text(
+              text = "Hãy cùng chọn sở thích ở trang Ghép Đôi để hệ thống tự động gợi ý quà và lịch hẹn lý tưởng cho cả hai!",
+              fontSize = 12.sp,
+              color = Color.Gray
+            )
+          }
         }
       }
     }

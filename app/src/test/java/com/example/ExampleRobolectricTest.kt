@@ -73,4 +73,48 @@ class ExampleRobolectricTest {
     assertEquals("https://example.com/girl.png", retrieved?.partner2ProfilePicture)
     assertEquals(1349, retrieved?.loveDays)
   }
+
+  @Test
+  fun `online repository pairing and breakup logic`() = runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val onlineRepo = com.example.data.repository.OnlineCoupleRepository(db.inLoveDao(), context)
+    onlineRepo.ensureInitialized()
+
+    // User A initially COUPLED
+    val userA = onlineRepo.currentUser.first()
+    assertEquals(com.example.data.repository.OnlineCoupleRepository.USER_A_ID, userA.uid)
+
+    // 1. Breakup flow: User A requests breakup
+    val (breakupReqSuccess, _) = onlineRepo.requestBreakup()
+    assertEquals(true, breakupReqSuccess)
+
+    val relPending = onlineRepo.activeRelationship.first()
+    assertEquals(com.example.data.model.RelationshipStatus.PENDING_BREAKUP, relPending?.status)
+
+    // Switch to User B and confirm breakup
+    onlineRepo.switchDemoUserSync()
+    val (confirmSuccess, _) = onlineRepo.confirmBreakup()
+    assertEquals(true, confirmSuccess)
+
+    // Both should now be SINGLE
+    val singleStatus = onlineRepo.relationshipStatus.first()
+    assertEquals(com.example.data.model.OnlineStatus.SINGLE, singleStatus)
+
+    // 2. Pairing flow: User B sends invite to User A
+    val (sendSuccess, _) = onlineRepo.sendSetLoveInvite(com.example.data.repository.OnlineCoupleRepository.USER_A_CODE)
+    assertEquals(true, sendSuccess)
+
+    // Switch back to User A
+    onlineRepo.switchDemoUserSync()
+    val incoming = onlineRepo.incomingInvite.first()
+    assertNotNull(incoming)
+
+    // Accept invite
+    val (acceptSuccess, _) = onlineRepo.acceptSetLoveInvite(incoming?.inviteId ?: "")
+    assertEquals(true, acceptSuccess)
+
+    // Status should be COUPLED again
+    val status = onlineRepo.relationshipStatus.first()
+    assertEquals(com.example.data.model.OnlineStatus.COUPLED, status)
+  }
 }

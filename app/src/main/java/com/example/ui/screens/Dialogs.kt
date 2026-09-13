@@ -84,6 +84,11 @@ import com.example.ui.theme.Secondary
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.SurfaceContainerLowest
 import com.example.ui.theme.Tertiary
+import com.example.ui.components.DatePickerPresets
+import com.example.ui.components.DatePickerUtils
+import com.example.ui.components.InLoveDatePickerDialog
+import com.example.ui.components.InLoveDatePickerField
+import com.example.ui.util.ProfileUtils
 
 @Composable
 fun AddReminderDialog(
@@ -220,12 +225,25 @@ fun AddMilestoneDialog(
           singleLine = true
         )
 
-        OutlinedTextField(
+        InLoveDatePickerField(
           value = dateText,
-          onValueChange = { dateText = it },
-          label = { Text("Ngày tháng") },
+          onValueChange = { newDate ->
+            dateText = newDate
+            val parsedMillis = DatePickerUtils.parseDateToUtcMillis(newDate)
+            if (parsedMillis != null) {
+              val now = System.currentTimeMillis()
+              val diff = parsedMillis - now
+              val days = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
+              daysRemainingStr = Math.max(0, days).toString()
+            }
+          },
+          label = "Ngày tháng sự kiện (dd/MM/yyyy) *",
+          placeholder = "15/11/2026",
+          dialogTitle = "Chọn ngày sự kiện / kỷ niệm",
+          quickPresets = DatePickerPresets.upcomingAnniversaryPresets(),
+          helperText = DatePickerUtils.getFriendlyDateDescription(dateText),
           modifier = Modifier.fillMaxWidth(),
-          singleLine = true
+          testTag = "input_milestone_date"
         )
 
         OutlinedTextField(
@@ -799,12 +817,20 @@ fun EditCoupleDialog(
               singleLine = true
             )
 
-            OutlinedTextField(
+            InLoveDatePickerField(
               value = boyBirth,
-              onValueChange = { boyBirth = it },
-              label = { Text("Ngày sinh (VD: 15/10/2004)") },
-              modifier = Modifier.fillMaxWidth().testTag("partner1_birthday_input"),
-              singleLine = true
+              onValueChange = { newBirth ->
+                boyBirth = newBirth
+                val calculatedAge = ProfileUtils.calculateAge(newBirth)
+                if (calculatedAge > 0) boyAgeStr = calculatedAge.toString()
+                val (zodiacName, _) = ProfileUtils.calculateZodiac(newBirth)
+                if (zodiacName != "Chưa rõ") boyZodiac = zodiacName
+              },
+              label = "Ngày sinh bạn nam (dd/MM/yyyy)",
+              placeholder = "15/10/2004",
+              dialogTitle = "Chọn ngày sinh bạn nam",
+              modifier = Modifier.fillMaxWidth(),
+              testTag = "partner1_birthday_input"
             )
 
             OutlinedTextField(
@@ -922,12 +948,20 @@ fun EditCoupleDialog(
               singleLine = true
             )
 
-            OutlinedTextField(
+            InLoveDatePickerField(
               value = girlBirth,
-              onValueChange = { girlBirth = it },
-              label = { Text("Ngày sinh (VD: 24/07/2003)") },
-              modifier = Modifier.fillMaxWidth().testTag("partner2_birthday_input"),
-              singleLine = true
+              onValueChange = { newBirth ->
+                girlBirth = newBirth
+                val calculatedAge = ProfileUtils.calculateAge(newBirth)
+                if (calculatedAge > 0) girlAgeStr = calculatedAge.toString()
+                val (zodiacName, _) = ProfileUtils.calculateZodiac(newBirth)
+                if (zodiacName != "Chưa rõ") girlZodiac = zodiacName
+              },
+              label = "Ngày sinh bạn nữ (dd/MM/yyyy)",
+              placeholder = "24/07/2003",
+              dialogTitle = "Chọn ngày sinh bạn nữ",
+              modifier = Modifier.fillMaxWidth(),
+              testTag = "partner2_birthday_input"
             )
 
             OutlinedTextField(
@@ -1018,12 +1052,20 @@ fun EditCoupleDialog(
               modifier = Modifier.fillMaxWidth().testTag("edit_love_title"),
               singleLine = true
             )
-            OutlinedTextField(
+            InLoveDatePickerField(
               value = anniversary,
-              onValueChange = { anniversary = it },
-              label = { Text("Ngày bắt đầu yêu (VD: 18/12/2022)") },
-              modifier = Modifier.fillMaxWidth().testTag("edit_anniversary_date"),
-              singleLine = true
+              onValueChange = { newAnniv ->
+                anniversary = newAnniv
+                val calculatedDays = ProfileUtils.calculateLoveDays(newAnniv)
+                daysStr = calculatedDays.toString()
+              },
+              label = "Ngày bắt đầu yêu (dd/MM/yyyy) *",
+              placeholder = "18/12/2022",
+              dialogTitle = "Chọn ngày bắt đầu yêu",
+              quickPresets = DatePickerPresets.relationshipStartDatePresets(),
+              helperText = DatePickerUtils.getFriendlyDateDescription(anniversary),
+              modifier = Modifier.fillMaxWidth(),
+              testTag = "edit_anniversary_date"
             )
             Row(
               modifier = Modifier.fillMaxWidth(),
@@ -1580,15 +1622,16 @@ fun AddAnniversaryDateDialog(
           singleLine = true
         )
 
-        OutlinedTextField(
+        InLoveDatePickerField(
           value = dateText,
           onValueChange = { dateText = it },
-          label = { Text("Ngày kỷ niệm (dd/MM/yyyy) *") },
-          placeholder = { Text("18/12/2022") },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_anniversary_date"),
-          singleLine = true
+          label = "Ngày kỷ niệm (dd/MM/yyyy) *",
+          placeholder = "18/12/2022",
+          dialogTitle = "Chọn ngày kỷ niệm",
+          quickPresets = DatePickerPresets.upcomingAnniversaryPresets(),
+          helperText = DatePickerUtils.getFriendlyDateDescription(dateText),
+          modifier = Modifier.fillMaxWidth(),
+          testTag = "input_anniversary_date"
         )
 
         Text(
@@ -1830,15 +1873,16 @@ fun AddGiftReminderDialog(
           singleLine = true
         )
 
-        OutlinedTextField(
+        InLoveDatePickerField(
           value = dueDateText,
           onValueChange = { dueDateText = it },
-          label = { Text("Hạn hoàn thành chuẩn bị") },
-          placeholder = { Text("11 Tháng 9, 2026") },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_gift_reminder_date"),
-          singleLine = true
+          label = "Hạn hoàn thành chuẩn bị (dd/MM/yyyy)",
+          placeholder = "11/09/2026",
+          dialogTitle = "Chọn ngày hẹn tặng quà",
+          quickPresets = DatePickerPresets.upcomingAnniversaryPresets(),
+          helperText = DatePickerUtils.getFriendlyDateDescription(dueDateText),
+          modifier = Modifier.fillMaxWidth(),
+          testTag = "input_gift_reminder_date"
         )
 
         OutlinedTextField(

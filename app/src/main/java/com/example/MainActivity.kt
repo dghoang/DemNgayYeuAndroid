@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.repository.AuthState
 import com.example.ui.components.AdBannerPlaceholder
 import com.example.ui.components.DigitalTrophyRewardDialog
 import com.example.ui.components.FloatingHeartsOverlay
@@ -39,14 +40,18 @@ import com.example.ui.screens.AddChecklistDialog
 import com.example.ui.screens.AddGiftReminderDialog
 import com.example.ui.screens.AddMilestoneDialog
 import com.example.ui.screens.AddReminderDialog
+import com.example.ui.screens.AppPinLockScreen
+import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.CaptureMemoryDialog
 import com.example.ui.screens.EditCoupleDialog
+import com.example.ui.screens.EditMyProfileDialog
 import com.example.ui.screens.GiftDetailDialog
 import com.example.ui.screens.GiftScreen
 import com.example.ui.screens.LanguageSelectionDialog
 import com.example.ui.screens.LoveHomeScreen
 import com.example.ui.screens.MemoriesGridScreen
+import com.example.ui.screens.PairingScreen
 import com.example.ui.screens.ReminderScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.UserGuideDialog
@@ -64,8 +69,12 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     setContent {
-      MyApplicationTheme {
-        InLoveApp()
+      androidx.compose.runtime.CompositionLocalProvider(
+        androidx.activity.compose.LocalActivityResultRegistryOwner provides this
+      ) {
+        MyApplicationTheme {
+          InLoveApp()
+        }
       }
     }
   }
@@ -109,12 +118,26 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
       setLocale(locale)
     }
   }
-  val context = androidx.compose.ui.platform.LocalContext.current.createConfigurationContext(configuration)
+  val rawContext = androidx.compose.ui.platform.LocalContext.current
+  val currentRegistryOwner = androidx.activity.compose.LocalActivityResultRegistryOwner.current
+    ?: (rawContext as? androidx.activity.result.ActivityResultRegistryOwner)
 
-  androidx.compose.runtime.CompositionLocalProvider(
-    androidx.compose.ui.platform.LocalConfiguration provides configuration,
-    androidx.compose.ui.platform.LocalContext provides context
-  ) {
+  val context = remember(rawContext, configuration) {
+    rawContext.createConfigurationContext(configuration)
+  }
+
+  val compositionLocals = remember(configuration, context, currentRegistryOwner) {
+    val locals = mutableListOf<androidx.compose.runtime.ProvidedValue<*>>(
+      androidx.compose.ui.platform.LocalConfiguration provides configuration,
+      androidx.compose.ui.platform.LocalContext provides context
+    )
+    if (currentRegistryOwner != null) {
+      locals.add(androidx.activity.compose.LocalActivityResultRegistryOwner provides currentRegistryOwner)
+    }
+    locals.toTypedArray()
+  }
+
+  androidx.compose.runtime.CompositionLocalProvider(*compositionLocals) {
     val strings = LocalizedStrings.fromContext(context, appLanguage)
 
     val boyName by viewModel.boyName.collectAsState()
@@ -135,25 +158,31 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val authState by viewModel.authState.collectAsState()
+
     LaunchedEffect(toastMessage) {
       toastMessage?.let { msg ->
+        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
         snackbarHostState.showSnackbar(msg)
         viewModel.clearToast()
       }
     }
 
     // Request notification permission for Android 13+ (API 33+)
-    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-      contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-      if (isGranted) {
-        viewModel.showToast(if (appLanguage == AppLanguage.VI) "🔔 Đã kích hoạt quyền thông báo kỷ niệm!" else "🔔 Anniversary notifications enabled!")
-        viewModel.resyncAllAnniversaryAlarms()
+    val registryOwner = androidx.activity.compose.LocalActivityResultRegistryOwner.current
+    val permissionLauncher = if (registryOwner != null) {
+      androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+      ) { isGranted ->
+        if (isGranted) {
+          viewModel.showToast(if (appLanguage == AppLanguage.VI) "🔔 Đã kích hoạt quyền thông báo kỷ niệm!" else "🔔 Anniversary notifications enabled!")
+          viewModel.resyncAllAnniversaryAlarms()
+        }
       }
-    }
+    } else null
 
-    LaunchedEffect(Unit) {
-      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+    LaunchedEffect(permissionLauncher) {
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && permissionLauncher != null) {
         if (androidx.core.content.ContextCompat.checkSelfPermission(
             context,
             android.Manifest.permission.POST_NOTIFICATIONS
@@ -165,7 +194,7 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
     }
 
     // Handle deep navigation when opened from an anniversary or reminder notification
-    val activity = androidx.compose.ui.platform.LocalContext.current as? androidx.activity.ComponentActivity
+    val activity = rawContext as? androidx.activity.ComponentActivity
     LaunchedEffect(activity?.intent) {
       val targetTab = activity?.intent?.getStringExtra("target_tab")
       if (targetTab == "calendar") {
@@ -188,19 +217,27 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
       else -> strings.navSettings
     }
 
-  Box(
-    modifier = Modifier
-      .fillMaxSize()
-      .background(
-        Brush.verticalGradient(
-          listOf(
-            Surface,
-            SurfaceContainerLowest,
-            Color(0xFFFFF7F9)
-          )
-        )
-      )
-  ) {
+    when (val currentAuth = authState) {
+      is AuthState.Unauthenticated -> {
+        AuthScreen(viewModel = viewModel)
+      }
+      is AuthState.PinLocked -> {
+        AppPinLockScreen(account = currentAuth.account, viewModel = viewModel)
+      }
+      is AuthState.Authenticated -> {
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .background(
+              Brush.verticalGradient(
+                listOf(
+                  Surface,
+                  SurfaceContainerLowest,
+                  Color(0xFFFFF7F9)
+                )
+              )
+            )
+        ) {
     Scaffold(
       containerColor = Color.Transparent,
       topBar = {
@@ -449,7 +486,36 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
         onDismiss = { viewModel.selectBadge(null) }
       )
     }
+
+    val showPairingScreen by viewModel.showPairingScreen.collectAsState()
+    if (showPairingScreen) {
+      androidx.compose.ui.window.Dialog(
+        onDismissRequest = { viewModel.closePairingScreen() },
+        properties = androidx.compose.ui.window.DialogProperties(
+          usePlatformDefaultWidth = false,
+          dismissOnBackPress = true
+        )
+      ) {
+        PairingScreen(
+          viewModel = viewModel,
+          onNavigateBack = { viewModel.closePairingScreen() }
+        )
+      }
+    }
+
+    val showEditProfileDialog by viewModel.showEditProfileDialog.collectAsState()
+    val currentOnlineUser by viewModel.currentOnlineUser.collectAsState()
+    if (showEditProfileDialog) {
+      EditMyProfileDialog(
+        currentUser = currentOnlineUser,
+        onDismiss = { viewModel.closeEditProfileDialog() },
+        onSave = { name, birth, avatar, gender, bio ->
+          viewModel.updateMyProfile(name, birth, avatar, gender, bio)
+        }
+      )
+    }
   }
 }
-
+}
+}
 }

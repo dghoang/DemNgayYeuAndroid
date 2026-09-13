@@ -101,9 +101,12 @@ fun MemoriesGridScreen(
   val strings = LocalizedStrings.get(currentLanguage)
   val memories by viewModel.sharedMemories.collectAsState()
   val selectedDetail by viewModel.selectedMemoryDetail.collectAsState()
+  val relationshipStatus by viewModel.relationshipStatus.collectAsState()
 
   var showAddDialog by remember { mutableStateOf(false) }
   var selectedFilter by remember { mutableStateOf("all") } // "all" or "fav"
+
+  val isCoupled = relationshipStatus == com.example.data.model.OnlineStatus.COUPLED
 
   val filteredMemories = remember(memories, selectedFilter) {
     when (selectedFilter) {
@@ -113,13 +116,79 @@ fun MemoriesGridScreen(
   }
 
   Box(modifier = modifier.fillMaxSize()) {
-    LazyVerticalGrid(
-      columns = GridCells.Fixed(2),
-      contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 96.dp),
-      horizontalArrangement = Arrangement.spacedBy(14.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
-      modifier = Modifier.fillMaxSize()
-    ) {
+    if (!isCoupled) {
+      // Single / Uncoupled State: Require 1-1 pairing to unlock shared memories
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(horizontal = 24.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+      ) {
+        Box(
+          modifier = Modifier
+            .size(100.dp)
+            .clip(CircleShape)
+            .background(Color(0xFFFFEBEE)),
+          contentAlignment = Alignment.Center
+        ) {
+          Icon(
+            imageVector = Icons.Default.Favorite,
+            contentDescription = null,
+            tint = Color(0xFFE91E63),
+            modifier = Modifier.size(52.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+          text = "Chưa Kết Nối Người Thương",
+          fontWeight = FontWeight.Bold,
+          fontSize = 20.sp,
+          color = Color(0xFF880E4F),
+          textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(
+          text = "Bạn cần kết nối với người yêu để mở khóa và lưu giữ kỷ niệm chung 1-1. Mọi hình ảnh, nhật ký và khoảnh khắc đáng nhớ sẽ được đồng bộ riêng tư giữa hai bạn.",
+          fontSize = 14.sp,
+          color = Color.Gray,
+          textAlign = TextAlign.Center,
+          lineHeight = 20.sp
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+          onClick = { viewModel.openPairingScreen() },
+          shape = RoundedCornerShape(16.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)),
+          modifier = Modifier.height(48.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.Favorite,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Ghép đôi Set Love ngay 💕",
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp
+          )
+        }
+      }
+    } else {
+      LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 96.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxSize()
+      ) {
       // Header Section
       item(span = { GridItemSpan(2) }) {
         MemoriesHeader(
@@ -178,6 +247,7 @@ fun MemoriesGridScreen(
         .align(Alignment.BottomEnd)
         .padding(end = 20.dp, bottom = 24.dp)
     )
+    }
 
     // Add Memory Dialog
     if (showAddDialog) {
@@ -563,27 +633,32 @@ private fun AddMemoryDialog(
   }
 
   // System Photo Picker launcher
-  val photoPickerLauncher = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.PickVisualMedia()
-  ) { uri: Uri? ->
-    uri?.let {
-      // Copy picked uri to app cache for persistence
-      val persistentPath = copyUriToInternalStorage(context, it)
-      selectedPhotoUri = persistentPath ?: it.toString()
-    }
-  }
-
-  // Camera capture launcher (TakePicturePreview returns Bitmap)
-  val cameraLauncher = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.TakePicturePreview()
-  ) { bitmap: Bitmap? ->
-    bitmap?.let {
-      val savedPath = saveBitmapToInternalStorage(context, it)
-      if (savedPath != null) {
-        selectedPhotoUri = savedPath
+  val registryOwner = androidx.activity.compose.LocalActivityResultRegistryOwner.current
+  val photoPickerLauncher = if (registryOwner != null) {
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+      uri?.let {
+        // Copy picked uri to app cache for persistence
+        val persistentPath = copyUriToInternalStorage(context, it)
+        selectedPhotoUri = persistentPath ?: it.toString()
       }
     }
-  }
+  } else null
+
+  // Camera capture launcher (TakePicturePreview returns Bitmap)
+  val cameraLauncher = if (registryOwner != null) {
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+      bitmap?.let {
+        val savedPath = saveBitmapToInternalStorage(context, it)
+        if (savedPath != null) {
+          selectedPhotoUri = savedPath
+        }
+      }
+    }
+  } else null
 
   // Romantic Photo Presets for quick selection
   val presetPhotos = listOf(
@@ -677,7 +752,7 @@ private fun AddMemoryDialog(
         ) {
           OutlinedButton(
             onClick = {
-              photoPickerLauncher.launch(
+              photoPickerLauncher?.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
               )
             },
@@ -695,7 +770,7 @@ private fun AddMemoryDialog(
 
           OutlinedButton(
             onClick = {
-              cameraLauncher.launch(null)
+              cameraLauncher?.launch(null)
             },
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.weight(1f)
