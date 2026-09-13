@@ -29,10 +29,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.AdBannerPlaceholder
+import com.example.ui.components.DigitalTrophyRewardDialog
 import com.example.ui.components.FloatingHeartsOverlay
 import com.example.ui.components.InLoveBottomNav
 import com.example.ui.components.InLoveTopBar
+import com.example.ui.components.MilestoneBadgeShowcaseDialog
+import com.example.ui.screens.AddAnniversaryDateDialog
 import com.example.ui.screens.AddChecklistDialog
+import com.example.ui.screens.AddGiftReminderDialog
 import com.example.ui.screens.AddMilestoneDialog
 import com.example.ui.screens.AddReminderDialog
 import com.example.ui.screens.CalendarScreen
@@ -77,6 +81,8 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
   val showAddReminderDialog by viewModel.showAddReminderDialog.collectAsState()
   val showAddMilestoneDialog by viewModel.showAddMilestoneDialog.collectAsState()
   val showAddChecklistDialog by viewModel.showAddChecklistDialog.collectAsState()
+  val showAddAnniversaryDialog by viewModel.showAddAnniversaryDialog.collectAsState()
+  val showAddGiftReminderDialog by viewModel.showAddGiftReminderDialog.collectAsState()
   val showEditCoupleDialog by viewModel.showEditCoupleDialog.collectAsState()
   val selectedGiftDetail by viewModel.selectedGiftDetail.collectAsState()
   val showVipProposalDetail by viewModel.showVipProposalDetail.collectAsState()
@@ -85,6 +91,9 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
   val showWallpaperDialog by viewModel.showWallpaperDialog.collectAsState()
   val showMemoryDialog by viewModel.showMemoryDialog.collectAsState()
   val showGuideDialog by viewModel.showGuideDialog.collectAsState()
+  val showBadgeShowcaseDialog by viewModel.showBadgeShowcaseDialog.collectAsState()
+  val selectedBadge by viewModel.selectedBadge.collectAsState()
+  val loveDays by viewModel.loveDays.collectAsState()
   val appLanguage by viewModel.appLanguage.collectAsState()
   val selectedWallpaperUrl by viewModel.selectedWallpaperUrl.collectAsState()
 
@@ -130,6 +139,39 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
       toastMessage?.let { msg ->
         snackbarHostState.showSnackbar(msg)
         viewModel.clearToast()
+      }
+    }
+
+    // Request notification permission for Android 13+ (API 33+)
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+      contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+      if (isGranted) {
+        viewModel.showToast(if (appLanguage == AppLanguage.VI) "🔔 Đã kích hoạt quyền thông báo kỷ niệm!" else "🔔 Anniversary notifications enabled!")
+        viewModel.resyncAllAnniversaryAlarms()
+      }
+    }
+
+    LaunchedEffect(Unit) {
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.POST_NOTIFICATIONS
+          ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+          permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+      }
+    }
+
+    // Handle deep navigation when opened from an anniversary or reminder notification
+    val activity = androidx.compose.ui.platform.LocalContext.current as? androidx.activity.ComponentActivity
+    LaunchedEffect(activity?.intent) {
+      val targetTab = activity?.intent?.getStringExtra("target_tab")
+      if (targetTab == "calendar") {
+        viewModel.setTab(2)
+      } else if (targetTab == "home") {
+        viewModel.setTab(0)
       }
     }
 
@@ -230,7 +272,8 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
             0 -> LoveHomeScreen(
               viewModel = viewModel,
               onNavigateToCalendar = { viewModel.setTab(2) },
-              onNavigateToGifts = { viewModel.setTab(3) }
+              onNavigateToGifts = { viewModel.setTab(3) },
+              onNavigateToMemories = { viewModel.setTab(1) }
             )
             1 -> MemoriesGridScreen(viewModel = viewModel)
             2 -> CalendarScreen(
@@ -242,7 +285,8 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
             else -> LoveHomeScreen(
               viewModel = viewModel,
               onNavigateToCalendar = { viewModel.setTab(2) },
-              onNavigateToGifts = { viewModel.setTab(3) }
+              onNavigateToGifts = { viewModel.setTab(3) },
+              onNavigateToMemories = { viewModel.setTab(1) }
             )
           }
         }
@@ -320,6 +364,24 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
       )
     }
 
+    if (showAddAnniversaryDialog) {
+      AddAnniversaryDateDialog(
+        onDismiss = { viewModel.closeAddAnniversaryDialog() },
+        onConfirm = { title, dateText, type, description, isAnnual, reminderDaysBefore ->
+          viewModel.addAnniversaryDate(title, dateText, type, description, isAnnual, reminderDaysBefore)
+        }
+      )
+    }
+
+    if (showAddGiftReminderDialog) {
+      AddGiftReminderDialog(
+        onDismiss = { viewModel.closeAddGiftReminderDialog() },
+        onConfirm = { title, recipient, occasion, dueDateText, estimatedBudget, notes ->
+          viewModel.addGiftReminder(title, recipient, occasion, dueDateText, estimatedBudget, notes)
+        }
+      )
+    }
+
     selectedGiftDetail?.let { gift ->
       GiftDetailDialog(
         gift = gift,
@@ -369,6 +431,22 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
       UserGuideDialog(
         language = appLanguage,
         onDismiss = { viewModel.closeGuideDialog() }
+      )
+    }
+
+    if (showBadgeShowcaseDialog) {
+      MilestoneBadgeShowcaseDialog(
+        viewModel = viewModel,
+        onDismiss = { viewModel.closeBadgeShowcase() }
+      )
+    }
+
+    selectedBadge?.let { badge ->
+      DigitalTrophyRewardDialog(
+        badge = badge,
+        currentLoveDays = loveDays,
+        viewModel = viewModel,
+        onDismiss = { viewModel.selectBadge(null) }
       )
     }
   }

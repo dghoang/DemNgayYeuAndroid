@@ -35,10 +35,14 @@
         <receiver
             android:name=".alarm.ReminderAlarmReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
-                <action android:name="com.example.inlove.ACTION_REMINDER_ALARM" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.example.inlove.ACTION_REMINDER_ALARM" />
+                <action android:name="com.example.inlove.ACTION_ANNIVERSARY_ALARM" />
+                <action android:name="com.example.inlove.ACTION_DAILY_ANNIVERSARY_CHECK" />
+                <action android:name="com.example.inlove.ACTION_SNOOZE" />
             </intent-filter>
         </receiver>
     </application>

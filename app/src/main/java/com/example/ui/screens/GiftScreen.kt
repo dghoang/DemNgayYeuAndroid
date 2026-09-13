@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
@@ -84,6 +85,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.ChecklistItemEntity
 import com.example.data.model.GiftIdeaEntity
+import com.example.data.model.GiftReminderEntity
 import com.example.ui.theme.OnPrimaryFixed
 import com.example.ui.theme.OnSurface
 import com.example.ui.theme.OnSurfaceVariant
@@ -111,9 +113,26 @@ fun GiftScreen(
 ) {
   val giftIdeas by viewModel.giftIdeas.collectAsState()
   val checklistItems by viewModel.checklistItems.collectAsState()
+  val giftReminders by viewModel.giftReminders.collectAsState()
   val selectedCategory by viewModel.giftCategory.collectAsState()
 
   var giftItemToDelete by remember { mutableStateOf<ChecklistItemEntity?>(null) }
+  var reminderToDelete by remember { mutableStateOf<GiftReminderEntity?>(null) }
+
+  reminderToDelete?.let { reminder ->
+    DeleteConfirmationDialog(
+      title = "Xóa lời nhắc quà tặng?",
+      message = "Bạn có chắc chắn muốn xóa lời nhắc '${reminder.title}' khỏi cơ sở dữ liệu không?",
+      itemName = reminder.title,
+      onConfirm = {
+        viewModel.deleteGiftReminder(reminder.id)
+        reminderToDelete = null
+      },
+      onDismiss = {
+        reminderToDelete = null
+      }
+    )
+  }
 
   giftItemToDelete?.let { item ->
     DeleteConfirmationDialog(
@@ -581,6 +600,111 @@ fun GiftScreen(
                 onToggle = { viewModel.toggleChecklist(item) },
                 onDelete = { giftItemToDelete = item }
               )
+            }
+          }
+        }
+      }
+    }
+
+    // 6b. Room-Persisted Gift Reminders Section
+    item {
+      Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = Color.White.copy(alpha = 0.92f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("gift_reminders_section")
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(CircleShape)
+                  .background(Primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.CardGiftcard,
+                  contentDescription = null,
+                  tint = Primary,
+                  modifier = Modifier.size(20.dp)
+                )
+              }
+              Column {
+                Text(
+                  text = "Lời Nhắc Quà Tặng Đã Lưu",
+                  fontSize = 16.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = OnSurface
+                )
+                val completedReminders = giftReminders.count { it.isCompleted }
+                Text(
+                  text = "Lưu Room: $completedReminders/${giftReminders.size} món đã sẵn sàng",
+                  fontSize = 11.sp,
+                  color = OnSurfaceVariant
+                )
+              }
+            }
+
+            Surface(
+              shape = RoundedCornerShape(20.dp),
+              color = Primary.copy(alpha = 0.1f),
+              modifier = Modifier
+                .clickable { viewModel.openAddGiftReminderDialog() }
+                .padding(4.dp)
+                .testTag("btn_add_gift_reminder_header")
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.Add,
+                  contentDescription = null,
+                  tint = Primary,
+                  modifier = Modifier.size(15.dp)
+                )
+                Text(
+                  text = "Thêm nhắc quà",
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Primary
+                )
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(12.dp))
+
+          if (giftReminders.isEmpty()) {
+            Text(
+              text = "Chưa có lời nhắc quà tặng. Nhấn 'Thêm nhắc quà' để tạo lời nhắc chuẩn bị món quà ý nghĩa!",
+              fontSize = 12.sp,
+              color = OnSurfaceVariant,
+              modifier = Modifier.padding(vertical = 8.dp)
+            )
+          } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              giftReminders.forEach { reminder ->
+                GiftReminderRow(
+                  item = reminder,
+                  onToggle = { viewModel.toggleGiftReminderCompleted(reminder) },
+                  onDelete = { reminderToDelete = reminder }
+                )
+              }
             }
           }
         }
@@ -1074,6 +1198,106 @@ fun ChecklistRow(
             modifier = Modifier.size(16.dp)
           )
         }
+      }
+    }
+  }
+}
+
+@Composable
+fun GiftReminderRow(
+  item: GiftReminderEntity,
+  onToggle: () -> Unit,
+  onDelete: () -> Unit
+) {
+  Surface(
+    shape = RoundedCornerShape(16.dp),
+    color = if (item.isCompleted) SurfaceContainerHighest.copy(alpha = 0.4f) else SurfaceContainerLowest,
+    modifier = Modifier
+      .fillMaxWidth()
+      .testTag("gift_reminder_item_${item.id}")
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 10.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.weight(1f)
+      ) {
+        IconButton(
+          onClick = onToggle,
+          modifier = Modifier
+            .size(28.dp)
+            .testTag("btn_toggle_gift_reminder_${item.id}")
+        ) {
+          Icon(
+            imageVector = if (item.isCompleted) Icons.Filled.CheckCircle else Icons.Filled.TaskAlt,
+            contentDescription = "Hoàn thành",
+            tint = if (item.isCompleted) Primary else OnSurfaceVariant.copy(alpha = 0.4f),
+            modifier = Modifier.size(22.dp)
+          )
+        }
+
+        Column {
+          Text(
+            text = item.title,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (item.isCompleted) OnSurfaceVariant else OnSurface,
+            textDecoration = if (item.isCompleted) TextDecoration.LineThrough else null,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "Tặng: ${item.recipient}",
+              fontSize = 11.sp,
+              color = Primary,
+              fontWeight = FontWeight.Medium
+            )
+            Text(
+              text = "• ${item.dueDateText}",
+              fontSize = 11.sp,
+              color = OnSurfaceVariant
+            )
+            if (item.estimatedBudget.isNotBlank()) {
+              Text(
+                text = "• ${item.estimatedBudget}",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Secondary
+              )
+            }
+          }
+          if (item.notes.isNotBlank()) {
+            Text(
+              text = item.notes,
+              fontSize = 11.sp,
+              color = OnSurfaceVariant.copy(alpha = 0.8f),
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+      }
+
+      IconButton(
+        onClick = onDelete,
+        modifier = Modifier.size(32.dp)
+      ) {
+        Icon(
+          imageVector = Icons.Filled.Close,
+          contentDescription = "Xóa lời nhắc quà",
+          tint = OnSurfaceVariant.copy(alpha = 0.6f),
+          modifier = Modifier.size(18.dp)
+        )
       }
     }
   }

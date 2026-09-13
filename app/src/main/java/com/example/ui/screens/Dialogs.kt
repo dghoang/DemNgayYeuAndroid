@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.AlarmOn
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DinnerDining
@@ -1514,4 +1515,364 @@ fun SetAlarmReminderDialog(
     modifier = Modifier.testTag("dialog_set_alarm_reminder")
   )
 }
+
+@Composable
+fun AddAnniversaryDateDialog(
+  onDismiss: () -> Unit,
+  onConfirm: (
+    title: String,
+    dateText: String,
+    type: String,
+    description: String,
+    isAnnual: Boolean,
+    reminderDaysBefore: Int
+  ) -> Unit
+) {
+  var title by remember { mutableStateOf("") }
+  var dateText by remember { mutableStateOf("18/12/2022") }
+  var selectedType by remember { mutableStateOf("LOVE") }
+  var description by remember { mutableStateOf("") }
+  var isAnnual by remember { mutableStateOf(true) }
+  var reminderDaysBefore by remember { mutableIntStateOf(3) }
+
+  val typeOptions = listOf(
+    "LOVE" to "Ngày Bắt Đầu Yêu",
+    "FIRST_DATE" to "Hẹn Hò Đầu Tiên",
+    "FIRST_KISS" to "Nụ Hôn Đầu Tiên",
+    "PROPOSAL" to "Cầu Hôn",
+    "WEDDING" to "Đám Cưới",
+    "CUSTOM" to "Kỷ Niệm Riêng"
+  )
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Icon(
+          imageVector = Icons.Filled.Favorite,
+          contentDescription = null,
+          tint = Primary
+        )
+        Text(
+          text = "Thêm Ngày Kỷ Niệm Mới",
+          fontWeight = FontWeight.Bold,
+          fontSize = 18.sp,
+          color = OnSurface
+        )
+      }
+    },
+    text = {
+      Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        OutlinedTextField(
+          value = title,
+          onValueChange = { title = it },
+          label = { Text("Tên ngày kỷ niệm *") },
+          placeholder = { Text("Ví dụ: Ngày chính thức yêu nhau") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_anniversary_title"),
+          singleLine = true
+        )
+
+        OutlinedTextField(
+          value = dateText,
+          onValueChange = { dateText = it },
+          label = { Text("Ngày kỷ niệm (dd/MM/yyyy) *") },
+          placeholder = { Text("18/12/2022") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_anniversary_date"),
+          singleLine = true
+        )
+
+        Text(
+          text = "Loại kỷ niệm:",
+          fontSize = 12.sp,
+          fontWeight = FontWeight.Bold,
+          color = OnSurfaceVariant
+        )
+
+        // Type selection chips
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          typeOptions.take(3).forEach { (typeKey, label) ->
+            val isSelected = selectedType == typeKey
+            Surface(
+              shape = RoundedCornerShape(16.dp),
+              color = if (isSelected) Primary else SurfaceContainerHigh,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { selectedType = typeKey }
+            ) {
+              Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) Color.White else OnSurface,
+                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1
+              )
+            }
+          }
+        }
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          typeOptions.drop(3).forEach { (typeKey, label) ->
+            val isSelected = selectedType == typeKey
+            Surface(
+              shape = RoundedCornerShape(16.dp),
+              color = if (isSelected) Primary else SurfaceContainerHigh,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { selectedType = typeKey }
+            ) {
+              Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) Color.White else OnSurface,
+                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1
+              )
+            }
+          }
+        }
+
+        OutlinedTextField(
+          value = description,
+          onValueChange = { description = it },
+          label = { Text("Ghi chú / Cảm xúc") },
+          placeholder = { Text("Khoảnh khắc đáng nhớ nhất...") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_anniversary_desc"),
+          maxLines = 3
+        )
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "Lặp lại hàng năm:",
+            fontSize = 13.sp,
+            color = OnSurface
+          )
+          Switch(
+            checked = isAnnual,
+            onCheckedChange = { isAnnual = it },
+            colors = SwitchDefaults.colors(
+              checkedThumbColor = Color.White,
+              checkedTrackColor = Primary
+            )
+          )
+        }
+
+        Text(
+          text = "Hẹn giờ thông báo trước:",
+          fontSize = 12.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = OnSurface
+        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          listOf(0 to "Đúng ngày", 1 to "1 ngày", 3 to "3 ngày", 7 to "7 ngày").forEach { (days, label) ->
+            val isSelected = reminderDaysBefore == days
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = if (isSelected) Primary else SurfaceContainerHigh,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { reminderDaysBefore = days }
+            ) {
+              Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) Color.White else OnSurface,
+                modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1
+              )
+            }
+          }
+        }
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          onConfirm(title, dateText, selectedType, description, isAnnual, reminderDaysBefore)
+        },
+        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+        modifier = Modifier.testTag("btn_save_anniversary_date")
+      ) {
+        Text("Lưu Kỷ Niệm (Room)", fontWeight = FontWeight.Bold)
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Hủy", color = OnSurfaceVariant)
+      }
+    },
+    containerColor = Color.White,
+    shape = RoundedCornerShape(24.dp),
+    modifier = Modifier.testTag("dialog_add_anniversary_date")
+  )
+}
+
+@Composable
+fun AddGiftReminderDialog(
+  onDismiss: () -> Unit,
+  onConfirm: (
+    title: String,
+    recipient: String,
+    occasion: String,
+    dueDateText: String,
+    estimatedBudget: String,
+    notes: String
+  ) -> Unit
+) {
+  var title by remember { mutableStateOf("") }
+  var recipient by remember { mutableStateOf("Người ấy") }
+  var occasion by remember { mutableStateOf("Kỷ niệm ngày yêu") }
+  var dueDateText by remember { mutableStateOf("11 Tháng 9, 2026") }
+  var estimatedBudget by remember { mutableStateOf("500.000đ") }
+  var notes by remember { mutableStateOf("") }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Icon(
+          imageVector = Icons.Filled.CardGiftcard,
+          contentDescription = null,
+          tint = Primary
+        )
+        Text(
+          text = "Thêm Nhắc Nhở Quà Tặng",
+          fontWeight = FontWeight.Bold,
+          fontSize = 18.sp,
+          color = OnSurface
+        )
+      }
+    },
+    text = {
+      Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        OutlinedTextField(
+          value = title,
+          onValueChange = { title = it },
+          label = { Text("Món quà cần chuẩn bị *") },
+          placeholder = { Text("Ví dụ: Bó hoa hồng vĩnh cửu & Thiệp") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_gift_reminder_title"),
+          singleLine = true
+        )
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          OutlinedTextField(
+            value = recipient,
+            onValueChange = { recipient = it },
+            label = { Text("Tặng cho") },
+            placeholder = { Text("TLinh") },
+            modifier = Modifier
+              .weight(1f)
+              .testTag("input_gift_reminder_recipient"),
+            singleLine = true
+          )
+
+          OutlinedTextField(
+            value = estimatedBudget,
+            onValueChange = { estimatedBudget = it },
+            label = { Text("Dự chi") },
+            placeholder = { Text("500.000đ") },
+            modifier = Modifier
+              .weight(1f)
+              .testTag("input_gift_reminder_budget"),
+            singleLine = true
+          )
+        }
+
+        OutlinedTextField(
+          value = occasion,
+          onValueChange = { occasion = it },
+          label = { Text("Dịp kỷ niệm / Sự kiện") },
+          placeholder = { Text("Kỷ niệm 1.000 ngày") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_gift_reminder_occasion"),
+          singleLine = true
+        )
+
+        OutlinedTextField(
+          value = dueDateText,
+          onValueChange = { dueDateText = it },
+          label = { Text("Hạn hoàn thành chuẩn bị") },
+          placeholder = { Text("11 Tháng 9, 2026") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_gift_reminder_date"),
+          singleLine = true
+        )
+
+        OutlinedTextField(
+          value = notes,
+          onValueChange = { notes = it },
+          label = { Text("Ghi chú món quà") },
+          placeholder = { Text("Màu sắc, kích cỡ, địa chỉ cửa hàng...") },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_gift_reminder_notes"),
+          maxLines = 3
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          onConfirm(title, recipient, occasion, dueDateText, estimatedBudget, notes)
+        },
+        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+        modifier = Modifier.testTag("btn_save_gift_reminder")
+      ) {
+        Text("Lưu Nhắc Nhở (Room)", fontWeight = FontWeight.Bold)
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Hủy", color = OnSurfaceVariant)
+      }
+    },
+    containerColor = Color.White,
+    shape = RoundedCornerShape(24.dp),
+    modifier = Modifier.testTag("dialog_add_gift_reminder")
+  )
+}
+
 

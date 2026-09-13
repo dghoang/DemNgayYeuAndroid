@@ -4,10 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.AppDatabase
+import com.example.data.model.AnniversaryDateEntity
 import com.example.data.model.ChecklistItemEntity
 import com.example.data.model.CoupleProfileEntity
 import com.example.data.model.CustomReminderEntity
 import com.example.data.model.GiftIdeaEntity
+import com.example.data.model.GiftReminderEntity
+import com.example.data.model.LoveBadgeEntity
 import com.example.data.model.MilestoneEntity
 import com.example.data.model.ReminderCadenceEntity
 import com.example.data.model.SharedMemoryEntity
@@ -37,6 +40,9 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
   val reminderCadences: StateFlow<List<ReminderCadenceEntity>>
   val coupleProfile: StateFlow<CoupleProfileEntity?>
   val sharedMemories: StateFlow<List<SharedMemoryEntity>>
+  val loveBadges: StateFlow<List<LoveBadgeEntity>>
+  val anniversaryDates: StateFlow<List<AnniversaryDateEntity>>
+  val giftReminders: StateFlow<List<GiftReminderEntity>>
 
   private val _selectedTab = MutableStateFlow(0) // Default to Love Screen matching image.png!
   val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
@@ -61,6 +67,12 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
 
   private val _showAddChecklistDialog = MutableStateFlow(false)
   val showAddChecklistDialog: StateFlow<Boolean> = _showAddChecklistDialog.asStateFlow()
+
+  private val _showAddAnniversaryDialog = MutableStateFlow(false)
+  val showAddAnniversaryDialog: StateFlow<Boolean> = _showAddAnniversaryDialog.asStateFlow()
+
+  private val _showAddGiftReminderDialog = MutableStateFlow(false)
+  val showAddGiftReminderDialog: StateFlow<Boolean> = _showAddGiftReminderDialog.asStateFlow()
 
   // Set Alarm Reminder Dialog State
   private val _showSetAlarmDialog = MutableStateFlow(false)
@@ -118,6 +130,21 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
 
   private val _selectedMemoryDetail = MutableStateFlow<SharedMemoryEntity?>(null)
   val selectedMemoryDetail: StateFlow<SharedMemoryEntity?> = _selectedMemoryDetail.asStateFlow()
+
+  // Anniversary Memories Carousel Filter
+  private val _selectedAnniversaryFilter = MutableStateFlow("Tất cả")
+  val selectedAnniversaryFilter: StateFlow<String> = _selectedAnniversaryFilter.asStateFlow()
+
+  fun selectAnniversaryFilter(filter: String) {
+    _selectedAnniversaryFilter.value = filter
+  }
+
+  // Milestone Badge Tracker State
+  private val _selectedBadge = MutableStateFlow<LoveBadgeEntity?>(null)
+  val selectedBadge: StateFlow<LoveBadgeEntity?> = _selectedBadge.asStateFlow()
+
+  private val _showBadgeShowcaseDialog = MutableStateFlow(false)
+  val showBadgeShowcaseDialog: StateFlow<Boolean> = _showBadgeShowcaseDialog.asStateFlow()
 
   // Couple Profile State (as shown in user's image.png: Mhoang & TLinh)
   private val _boyName = MutableStateFlow("Mhoang")
@@ -208,8 +235,28 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
       emptyList()
     )
 
+    loveBadges = repository.loveBadges.stateIn(
+      viewModelScope,
+      SharingStarted.WhileSubscribed(5000),
+      emptyList()
+    )
+
+    anniversaryDates = repository.anniversaryDates.stateIn(
+      viewModelScope,
+      SharingStarted.WhileSubscribed(5000),
+      emptyList()
+    )
+
+    giftReminders = repository.giftReminders.stateIn(
+      viewModelScope,
+      SharingStarted.WhileSubscribed(5000),
+      emptyList()
+    )
+
     viewModelScope.launch {
       repository.initializeDefaultDataIfEmpty()
+      // Automatically schedule all stored anniversaries & milestones in Room DB
+      com.example.alarm.AlarmNotificationScheduler.scheduleAllAnniversariesFromDb(application)
     }
 
     viewModelScope.launch {
@@ -396,29 +443,41 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
       return
     }
     viewModelScope.launch {
-      repository.addMilestone(
-        MilestoneEntity(
-          title = title,
-          dateText = dateText,
-          subtitle = subtitle,
-          categoryTag = if (categoryTag.isNotBlank()) categoryTag else "Kỷ Niệm",
-          secondaryTag = if (secondaryTag.isNotBlank()) secondaryTag else "Ý Nghĩa",
-          imageUrl = if (imageUrl.isNotBlank()) imageUrl else "https://lh3.googleusercontent.com/aida-public/AB6AXuANA2ChG6LS0d4msPLYL4g-4W2BU_q52b1udp8NDaY4NJSzyw4NZnx6e2qKT1oMKzYrc76_1-nMndDIrMSO7k1QXvz66V8WEt7D3GuZmigotLqTpeJbbAdYrKyOPyUV1W-RxHRZbCo09c24vQC-5ZIS2iG1PM6s7V5_nejLv9V0-tTQujYKsbrgGRbfxlS_JvPgXqa_zXWfABTSL3rCM-VVaw2iIyPJ43vA8jK5bjWCrVYznx4hzUS6_w",
-          daysRemaining = daysRemaining,
-          isPast = daysRemaining < 0,
-          isImportant = isImportant
-        )
+      val ms = MilestoneEntity(
+        title = title,
+        dateText = dateText,
+        subtitle = subtitle,
+        categoryTag = if (categoryTag.isNotBlank()) categoryTag else "Kỷ Niệm",
+        secondaryTag = if (secondaryTag.isNotBlank()) secondaryTag else "Ý Nghĩa",
+        imageUrl = if (imageUrl.isNotBlank()) imageUrl else "https://lh3.googleusercontent.com/aida-public/AB6AXuANA2ChG6LS0d4msPLYL4g-4W2BU_q52b1udp8NDaY4NJSzyw4NZnx6e2qKT1oMKzYrc76_1-nMndDIrMSO7k1QXvz66V8WEt7D3GuZmigotLqTpeJbbAdYrKyOPyUV1W-RxHRZbCo09c24vQC-5ZIS2iG1PM6s7V5_nejLv9V0-tTQujYKsbrgGRbfxlS_JvPgXqa_zXWfABTSL3rCM-VVaw2iIyPJ43vA8jK5bjWCrVYznx4hzUS6_w",
+        daysRemaining = daysRemaining,
+        isPast = daysRemaining < 0,
+        isImportant = isImportant,
+        isUserCreated = true,
+        notificationEnabled = true
       )
+      val newId = repository.addMilestone(ms)
+      val context = getApplication<Application>()
+      com.example.alarm.AlarmNotificationScheduler.scheduleMilestoneNotification(context, ms.copy(id = newId))
       _showAddMilestoneDialog.value = false
       triggerFloatingHearts()
-      showToast("Đã thêm kỷ niệm mới thành công!")
+      showToast("Đã thêm kỷ niệm mới & hẹn giờ thông báo! 🔔")
     }
   }
 
   fun toggleMilestoneNotification(item: MilestoneEntity) {
     viewModelScope.launch {
+      val context = getApplication<Application>()
+      val willBeEnabled = !item.notificationEnabled
+      val updated = item.copy(notificationEnabled = willBeEnabled)
       repository.toggleMilestoneNotification(item)
-      showToast(if (!item.notificationEnabled) "Đã bật nhắc thông báo" else "Đã tắt nhắc thông báo")
+      if (willBeEnabled) {
+        com.example.alarm.AlarmNotificationScheduler.scheduleMilestoneNotification(context, updated)
+        showToast("🔔 Đã bật thông báo cho cột mốc '${item.title}'")
+      } else {
+        com.example.alarm.AlarmNotificationScheduler.cancelMilestoneNotification(context, item.id)
+        showToast("🔕 Đã tắt thông báo cho '${item.title}'")
+      }
     }
   }
 
@@ -652,6 +711,22 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
     _showAddChecklistDialog.value = false
   }
 
+  fun openAddAnniversaryDialog() {
+    _showAddAnniversaryDialog.value = true
+  }
+
+  fun closeAddAnniversaryDialog() {
+    _showAddAnniversaryDialog.value = false
+  }
+
+  fun openAddGiftReminderDialog() {
+    _showAddGiftReminderDialog.value = true
+  }
+
+  fun closeAddGiftReminderDialog() {
+    _showAddGiftReminderDialog.value = false
+  }
+
   fun openGiftDetail(item: GiftIdeaEntity) {
     _selectedGiftDetail.value = item
   }
@@ -751,7 +826,8 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
     dateText: String,
     photoUri: String,
     note: String = "",
-    location: String = ""
+    location: String = "",
+    anniversaryTitle: String = "18/12 - Ngày Yêu Nhau"
   ) {
     viewModelScope.launch {
       val validTitle = title.trim().ifEmpty { "Khoảnh Khắc Ngọt Ngào" }
@@ -759,12 +835,14 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
       val validUri = photoUri.trim().ifEmpty {
         "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1080&auto=format&fit=crop"
       }
+      val validAnniversary = anniversaryTitle.trim().ifEmpty { "18/12 - Ngày Yêu Nhau" }
       repository.addSharedMemory(
         title = validTitle,
         dateText = validDate,
         photoUri = validUri,
         note = note.trim(),
-        location = location.trim()
+        location = location.trim(),
+        anniversaryTitle = validAnniversary
       )
       triggerFloatingHearts()
       val msg = if (_appLanguage.value == AppLanguage.VI) {
@@ -803,5 +881,214 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
 
   fun closeMemoryDetail() {
     _selectedMemoryDetail.value = null
+  }
+
+  // Visual Milestone Tracker & Badges
+  fun selectBadge(badge: LoveBadgeEntity?) {
+    _selectedBadge.value = badge
+  }
+
+  fun openBadgeShowcase() {
+    _showBadgeShowcaseDialog.value = true
+  }
+
+  fun closeBadgeShowcase() {
+    _showBadgeShowcaseDialog.value = false
+  }
+
+  fun claimBadge(badgeId: String, customNote: String = "") {
+    viewModelScope.launch {
+      repository.claimLoveBadge(badgeId, customNote)
+      triggerFloatingHearts(isMilestone = true)
+      val msg = if (_appLanguage.value == AppLanguage.VI) {
+        "🏆 Đã vinh danh và lưu kỷ niệm vào Huy Hiệu Trái Tim!"
+      } else {
+        "🏆 Badge honored and memory saved to Heart Trophy!"
+      }
+      showToast(msg)
+    }
+  }
+
+  fun celebrateBadge(badge: LoveBadgeEntity) {
+    triggerFloatingHearts(isMilestone = true)
+    val msg = if (_appLanguage.value == AppLanguage.VI) {
+      "🎉 Chúc mừng cột mốc ${badge.targetDays} ngày bên nhau! 💕✨"
+    } else {
+      "🎉 Celebrating ${badge.targetDays} days together! 💕✨"
+    }
+    showToast(msg)
+  }
+
+  // Room Persistence for Anniversary Dates
+  fun addAnniversaryDate(
+    title: String,
+    dateText: String,
+    type: String = "LOVE",
+    description: String = "",
+    isAnnual: Boolean = true,
+    reminderDaysBefore: Int = 3
+  ) {
+    if (title.isBlank()) {
+      showToast("Vui lòng nhập tên ngày kỷ niệm!")
+      return
+    }
+    viewModelScope.launch {
+      val newId = repository.addAnniversaryDate(
+        title = title.trim(),
+        dateText = dateText.trim(),
+        type = type,
+        description = description.trim(),
+        isAnnual = isAnnual,
+        reminderDaysBefore = reminderDaysBefore
+      )
+      val context = getApplication<Application>()
+      val ann = AnniversaryDateEntity(
+        id = newId,
+        title = title.trim(),
+        dateText = dateText.trim(),
+        type = type,
+        description = description.trim(),
+        isAnnual = isAnnual,
+        notificationEnabled = true,
+        reminderDaysBefore = reminderDaysBefore
+      )
+      com.example.alarm.AlarmNotificationScheduler.scheduleAnniversaryNotification(context, ann)
+      _showAddAnniversaryDialog.value = false
+      triggerFloatingHearts()
+      showToast("Đã lưu ngày kỷ niệm & kích hoạt thông báo tự động! 🔔")
+    }
+  }
+
+  fun updateAnniversaryDate(item: AnniversaryDateEntity) {
+    viewModelScope.launch {
+      repository.updateAnniversaryDate(item)
+      val context = getApplication<Application>()
+      if (item.notificationEnabled) {
+        com.example.alarm.AlarmNotificationScheduler.scheduleAnniversaryNotification(context, item)
+      } else {
+        com.example.alarm.AlarmNotificationScheduler.cancelAnniversaryNotification(context, item.id)
+      }
+      showToast("Đã cập nhật ngày kỷ niệm!")
+    }
+  }
+
+  fun deleteAnniversaryDate(id: Long) {
+    viewModelScope.launch {
+      val context = getApplication<Application>()
+      com.example.alarm.AlarmNotificationScheduler.cancelAnniversaryNotification(context, id)
+      repository.deleteAnniversaryDate(id)
+      showToast("Đã xóa ngày kỷ niệm khỏi thiết bị.")
+    }
+  }
+
+  fun toggleAnniversaryNotification(item: AnniversaryDateEntity) {
+    viewModelScope.launch {
+      val context = getApplication<Application>()
+      val willBeEnabled = !item.notificationEnabled
+      val updated = item.copy(notificationEnabled = willBeEnabled)
+      repository.updateAnniversaryDate(updated)
+      if (willBeEnabled) {
+        val scheduled = com.example.alarm.AlarmNotificationScheduler.scheduleAnniversaryNotification(context, updated)
+        showToast(if (scheduled) "🔔 Đã bật thông báo kỷ niệm '${item.title}'" else "Đã bật thông báo '${item.title}'")
+      } else {
+        com.example.alarm.AlarmNotificationScheduler.cancelAnniversaryNotification(context, item.id)
+        showToast("🔕 Đã tắt thông báo kỷ niệm '${item.title}'")
+      }
+    }
+  }
+
+  private val _globalAnniversaryNotifications = MutableStateFlow(true)
+  val globalAnniversaryNotifications: StateFlow<Boolean> = _globalAnniversaryNotifications.asStateFlow()
+
+  fun toggleGlobalAnniversaryNotifications(enabled: Boolean) {
+    _globalAnniversaryNotifications.value = enabled
+    val context = getApplication<Application>()
+    viewModelScope.launch {
+      if (enabled) {
+        val count = com.example.alarm.AlarmNotificationScheduler.scheduleAllAnniversariesFromDb(context)
+        showToast("🔔 Đã bật & đồng bộ lại $count thông báo kỷ niệm!")
+      } else {
+        showToast("🔕 Đã tạm dừng thông báo ngày kỷ niệm.")
+      }
+    }
+  }
+
+  fun triggerTestAnniversaryNotification() {
+    val context = getApplication<Application>()
+    viewModelScope.launch {
+      val anniversaries = repository.getAnniversaryDatesList()
+      val firstAnn = anniversaries.firstOrNull { it.notificationEnabled } ?: anniversaries.firstOrNull()
+      if (firstAnn != null) {
+        com.example.alarm.ReminderAlarmReceiver.showNotification(
+          context = context,
+          title = "🎉 Thử nghiệm Kỷ Niệm: ${firstAnn.title} ❤️",
+          message = "Còn ít ngày nữa là đến '${firstAnn.title}' (${firstAnn.dateText}). Đừng quên chuẩn bị món quà bất ngờ và một buổi tối lãng mạn cho người ấy nhé! 🎁✨",
+          notificationId = 8888,
+          channelId = com.example.alarm.ReminderAlarmReceiver.CHANNEL_ANNIVERSARIES_ID,
+          targetTab = "calendar"
+        )
+      } else {
+        com.example.alarm.AlarmNotificationScheduler.triggerInstantTest(context)
+      }
+      showToast("🔔 Đã gửi thông báo kỷ niệm thử nghiệm lên thanh trạng thái!")
+    }
+  }
+
+  fun resyncAllAnniversaryAlarms() {
+    val context = getApplication<Application>()
+    viewModelScope.launch {
+      val count = com.example.alarm.AlarmNotificationScheduler.scheduleAllAnniversariesFromDb(context)
+      showToast("⏰ Đã quét & kích hoạt lại $count thông báo kỷ niệm từ cơ sở dữ liệu!")
+    }
+  }
+
+  // Room Persistence for Gift Reminders
+  fun addGiftReminder(
+    title: String,
+    recipient: String = "Người ấy",
+    occasion: String = "Kỷ niệm ngày yêu",
+    dueDateText: String = "",
+    estimatedBudget: String = "",
+    notes: String = ""
+  ) {
+    if (title.isBlank()) {
+      showToast("Vui lòng nhập món quà cần nhắc nhở!")
+      return
+    }
+    viewModelScope.launch {
+      repository.addGiftReminder(
+        title = title.trim(),
+        recipient = recipient.trim().ifEmpty { "Người ấy" },
+        occasion = occasion.trim().ifEmpty { "Kỷ niệm ngày yêu" },
+        dueDateText = dueDateText.trim().ifEmpty { "Sớm nhất" },
+        estimatedBudget = estimatedBudget.trim().ifEmpty { "Tùy chọn" },
+        notes = notes.trim()
+      )
+      _showAddGiftReminderDialog.value = false
+      triggerFloatingHearts()
+      showToast("Đã lưu lời nhắc quà tặng vào cơ sở dữ liệu Room!")
+    }
+  }
+
+  fun updateGiftReminder(item: GiftReminderEntity) {
+    viewModelScope.launch {
+      repository.updateGiftReminder(item)
+      showToast("Đã cập nhật lời nhắc quà tặng!")
+    }
+  }
+
+  fun toggleGiftReminderCompleted(item: GiftReminderEntity) {
+    viewModelScope.launch {
+      repository.toggleGiftReminderCompleted(item)
+      val msg = if (!item.isCompleted) "🎁 Tuyệt vời! Đã hoàn thành chuẩn bị món quà!" else "Đã chuyển về danh sách chuẩn bị quà."
+      showToast(msg)
+    }
+  }
+
+  fun deleteGiftReminder(id: Long) {
+    viewModelScope.launch {
+      repository.deleteGiftReminder(id)
+      showToast("Đã xóa lời nhắc quà tặng.")
+    }
   }
 }

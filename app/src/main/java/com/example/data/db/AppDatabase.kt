@@ -4,10 +4,13 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.data.model.AnniversaryDateEntity
 import com.example.data.model.ChecklistItemEntity
 import com.example.data.model.CoupleProfileEntity
 import com.example.data.model.CustomReminderEntity
 import com.example.data.model.GiftIdeaEntity
+import com.example.data.model.GiftReminderEntity
+import com.example.data.model.LoveBadgeEntity
 import com.example.data.model.MilestoneEntity
 import com.example.data.model.ReminderCadenceEntity
 import com.example.data.model.SharedMemoryEntity
@@ -20,9 +23,12 @@ import com.example.data.model.SharedMemoryEntity
     CustomReminderEntity::class,
     ReminderCadenceEntity::class,
     CoupleProfileEntity::class,
-    SharedMemoryEntity::class
+    SharedMemoryEntity::class,
+    LoveBadgeEntity::class,
+    AnniversaryDateEntity::class,
+    GiftReminderEntity::class
   ],
-  version = 4,
+  version = 7,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

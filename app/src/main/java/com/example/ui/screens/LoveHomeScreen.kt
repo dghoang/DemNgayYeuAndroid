@@ -54,7 +54,9 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.ui.components.AnniversaryMemoriesWidget
 import com.example.ui.components.LoveDaysCalculatorWidget
+import com.example.ui.components.MilestoneBadgeDashboardCard
 import com.example.ui.util.AppLanguage
 import com.example.ui.util.LocalizedStrings
 import androidx.compose.material3.Button
@@ -111,7 +113,8 @@ const val CHERRY_BLOSSOM_BG =
 fun LoveHomeScreen(
   viewModel: InLoveViewModel,
   onNavigateToCalendar: () -> Unit,
-  onNavigateToGifts: () -> Unit
+  onNavigateToGifts: () -> Unit,
+  onNavigateToMemories: () -> Unit = {}
 ) {
   val boyName by viewModel.boyName.collectAsState()
   val boyBirthDate by viewModel.boyBirthDate.collectAsState()
@@ -782,6 +785,24 @@ fun LoveHomeScreen(
           }
           viewModel.showToast(msg)
         },
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      // Visual Milestone Tracker & Heart Badges Showcase Card
+      MilestoneBadgeDashboardCard(
+        viewModel = viewModel,
+        onOpenFullShowcase = { viewModel.openBadgeShowcase() },
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      // 'Memories' Carousel Widget associated with specific anniversaries (Coil powered)
+      AnniversaryMemoriesWidget(
+        viewModel = viewModel,
+        onNavigateToFullAlbum = onNavigateToMemories,
         modifier = Modifier.fillMaxWidth()
       )
 

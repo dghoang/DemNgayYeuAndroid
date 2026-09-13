@@ -942,6 +942,33 @@ private fun MemoryDetailDialog(
           horizontalArrangement = Arrangement.spacedBy(8.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
+          if (memory.anniversaryTitle.isNotBlank()) {
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = Color(0xFFFFE4EC),
+              border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB3C6))
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Favorite,
+                  contentDescription = null,
+                  tint = Color(0xFFFF2D75),
+                  modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = memory.anniversaryTitle,
+                  fontSize = 11.5.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color(0xFFC2185B)
+                )
+              }
+            }
+          }
+
           Surface(
             shape = RoundedCornerShape(10.dp),
             color = Color(0xFFFFF0F5),

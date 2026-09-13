@@ -19,7 +19,8 @@ data class MilestoneEntity(
   val notificationEnabled: Boolean = true,
   val isSaved: Boolean = false,
   val alarmTimeMillis: Long? = null,
-  val alarmTimeFormatted: String = ""
+  val alarmTimeFormatted: String = "",
+  val isUserCreated: Boolean = false
 )
 
 @Entity(tableName = "gift_ideas")
@@ -91,5 +92,54 @@ data class SharedMemoryEntity(
   val photoUri: String,
   val location: String = "",
   val isFavorite: Boolean = false,
+  val anniversaryTitle: String = "18/12 - Ngày Yêu Nhau",
   val createdAt: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "love_badges")
+data class LoveBadgeEntity(
+  @PrimaryKey val id: String,
+  val targetDays: Int,
+  val titleVi: String,
+  val titleEn: String,
+  val descVi: String,
+  val descEn: String,
+  val tier: String, // "BRONZE", "SILVER", "GOLD", "RUBY", "DIAMOND", "COSMIC"
+  val iconType: String,
+  val rewardQuoteVi: String,
+  val rewardQuoteEn: String,
+  val isClaimed: Boolean = false,
+  val claimedTimestamp: Long? = null,
+  val customNote: String = ""
+)
+
+@Entity(tableName = "anniversary_dates")
+data class AnniversaryDateEntity(
+  @PrimaryKey(autoGenerate = true) val id: Long = 0,
+  val title: String,
+  val dateText: String, // e.g. "18/12/2022"
+  val type: String = "LOVE", // "LOVE", "FIRST_DATE", "FIRST_KISS", "PROPOSAL", "WEDDING", "CUSTOM"
+  val description: String = "",
+  val isAnnual: Boolean = true,
+  val notificationEnabled: Boolean = true,
+  val reminderDaysBefore: Int = 3,
+  val daysRemaining: Int = 0,
+  val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "gift_reminders")
+data class GiftReminderEntity(
+  @PrimaryKey(autoGenerate = true) val id: Long = 0,
+  val title: String,
+  val recipient: String = "Người ấy",
+  val occasion: String = "Kỷ niệm ngày yêu",
+  val dueDateText: String = "11 Tháng 9, 2026",
+  val estimatedBudget: String = "500.000đ",
+  val notes: String = "",
+  val isCompleted: Boolean = false,
+  val alarmTimeMillis: Long? = null,
+  val alarmTimeFormatted: String = "",
+  val createdAt: Long = System.currentTimeMillis()
+)
+
+
