@@ -22,6 +22,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,25 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
   val onlineRepo: com.example.data.repository.OnlineCoupleRepository
   val authRepo: com.example.data.repository.AuthRepository
   val authState: StateFlow<com.example.data.repository.AuthState>
+  val firebase3NFService: com.example.data.firebase.Firebase3NFService
+
+  val cloudinaryMediaService: com.example.data.cloudinary.ICloudinaryMediaService =
+    com.example.data.cloudinary.CloudinaryMediaService.getInstance()
+
+  private val _upcomingMilestones = MutableStateFlow<List<com.example.alarm.LoveMilestoneInfo>>(emptyList())
+  val upcomingMilestones: StateFlow<List<com.example.alarm.LoveMilestoneInfo>> = _upcomingMilestones.asStateFlow()
+
+  private val _show3NFVisualizerDialog = MutableStateFlow(false)
+  val show3NFVisualizerDialog: StateFlow<Boolean> = _show3NFVisualizerDialog.asStateFlow()
+
+  fun open3NFVisualizerDialog() {
+    // Deprecated - kept safe for any legacy calls
+    _show3NFVisualizerDialog.value = false
+  }
+
+  fun close3NFVisualizerDialog() {
+    _show3NFVisualizerDialog.value = false
+  }
 
   val milestones: StateFlow<List<MilestoneEntity>>
   val giftIdeas: StateFlow<List<GiftIdeaEntity>>
@@ -213,6 +233,7 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
     onlineRepo = com.example.data.repository.OnlineCoupleRepository(database.inLoveDao(), application)
     authRepo = com.example.data.repository.AuthRepository(database.inLoveDao(), onlineRepo, application)
     authState = authRepo.authState
+    firebase3NFService = com.example.data.firebase.Firebase3NFService(database.inLoveDao(), application)
 
     currentOnlineUser = onlineRepo.currentUser
     partnerOnlineUser = onlineRepo.partnerUser
@@ -305,6 +326,36 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
           _loveDays.value = profile.loveDays
           _anniversaryDate.value = profile.anniversaryDate
         }
+      }
+    }
+
+    // Automatically schedule upcoming love anniversary milestones based on Firestore start date
+    viewModelScope.launch {
+      combine(
+        activeRelationship,
+        _anniversaryDate,
+        partnerOnlineUser
+      ) { rel, annDate, partner ->
+        Triple(rel, annDate, partner)
+      }.collect { (rel, annDate, partner) ->
+        val startMillis = rel?.startDate ?: 0L
+        val startDateText = if (rel?.startDateText.isNullOrBlank()) annDate else rel!!.startDateText
+        val partnerName = partner?.effectiveDisplayName ?: "người ấy"
+
+        // Recalculate upcoming milestones list
+        val milestonesList = com.example.alarm.LoveAnniversaryMilestoneScheduler.getUpcomingMilestones(
+          startDateMillis = startMillis,
+          startDateText = startDateText
+        )
+        _upcomingMilestones.value = milestonesList
+
+        // Schedule local alarms based on Firestore start date
+        com.example.alarm.LoveAnniversaryMilestoneScheduler.scheduleMilestonesFromFirestore(
+          context = application,
+          startDateMillis = startMillis,
+          startDateText = startDateText,
+          partnerName = partnerName
+        )
       }
     }
   }
@@ -856,7 +907,15 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
     photoUri: String,
     note: String = "",
     location: String = "",
-    anniversaryTitle: String = "18/12 - Ngày Yêu Nhau"
+    anniversaryTitle: String = "18/12 - Ngày Yêu Nhau",
+    mediaType: String = "IMAGE",
+    videoUri: String? = null,
+    cloudinaryPublicId: String? = null,
+    cloudinaryUrl: String? = null,
+    isCloudinaryStored: Boolean = true,
+    fileSizeFormatted: String = "",
+    durationSeconds: Int = 0,
+    privacyLevel: String = "COUPLE_ONLY"
   ) {
     viewModelScope.launch {
       val validTitle = title.trim().ifEmpty { "Khoảnh Khắc Ngọt Ngào" }
@@ -865,22 +924,53 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
         "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1080&auto=format&fit=crop"
       }
       val validAnniversary = anniversaryTitle.trim().ifEmpty { "18/12 - Ngày Yêu Nhau" }
+      val myUid = currentOnlineUser.value.uid.ifBlank { "user_123" }
+      val myName = currentOnlineUser.value.effectiveDisplayName.ifBlank { "Bạn" }
+
       repository.addSharedMemory(
         title = validTitle,
         dateText = validDate,
         photoUri = validUri,
         note = note.trim(),
         location = location.trim(),
-        anniversaryTitle = validAnniversary
+        anniversaryTitle = validAnniversary,
+        authorId = myUid,
+        authorName = myName,
+        mediaType = mediaType,
+        videoUri = videoUri,
+        cloudinaryPublicId = cloudinaryPublicId,
+        cloudinaryUrl = cloudinaryUrl,
+        isCloudinaryStored = isCloudinaryStored,
+        fileSizeFormatted = fileSizeFormatted,
+        durationSeconds = durationSeconds,
+        privacyLevel = privacyLevel
       )
       triggerFloatingHearts()
       val msg = if (_appLanguage.value == AppLanguage.VI) {
-        "Đã lưu kỷ niệm \"$validTitle\" vào Album! 📸💕"
+        if (mediaType == "VIDEO") "Đã lưu video kỷ niệm lên Cloudinary & Album! 🎬☁️"
+        else "Đã lưu kỷ niệm \"$validTitle\" lên Cloudinary & Album! 📸💕"
       } else {
-        "Saved memory \"$validTitle\" to Album! 📸💕"
+        if (mediaType == "VIDEO") "Saved memory video to Cloudinary! 🎬☁️"
+        else "Saved memory \"$validTitle\" to Cloudinary & Album! 📸💕"
       }
       showToast(msg)
     }
+  }
+
+  fun updateSharedMemory(memory: SharedMemoryEntity) {
+    viewModelScope.launch {
+      repository.updateSharedMemory(memory)
+      if (_selectedMemoryDetail.value?.id == memory.id) {
+        _selectedMemoryDetail.value = memory
+      }
+      val msg = if (_appLanguage.value == AppLanguage.VI) "Đã cập nhật kỷ niệm! ✏️✨" else "Memory updated!"
+      showToast(msg)
+    }
+  }
+
+  fun isCurrentUserAuthor(memory: SharedMemoryEntity): Boolean {
+    val myUid = currentOnlineUser.value.uid
+    return memory.authorId.isBlank() || memory.authorId == myUid
   }
 
   fun deleteSharedMemory(id: Long) {
@@ -1069,6 +1159,36 @@ class InLoveViewModel(application: Application) : AndroidViewModel(application) 
       val count = com.example.alarm.AlarmNotificationScheduler.scheduleAllAnniversariesFromDb(context)
       showToast("⏰ Đã quét & kích hoạt lại $count thông báo kỷ niệm từ cơ sở dữ liệu!")
     }
+  }
+
+  fun syncUpcomingMilestonesFromFirestore() {
+    val rel = activeRelationship.value
+    val startMillis = rel?.startDate ?: 0L
+    val startDateText = if (rel?.startDateText.isNullOrBlank()) anniversaryDate.value else rel!!.startDateText
+    val partnerName = partnerOnlineUser.value?.effectiveDisplayName ?: "người ấy"
+
+    val count = com.example.alarm.LoveAnniversaryMilestoneScheduler.scheduleMilestonesFromFirestore(
+      context = getApplication<Application>(),
+      startDateMillis = startMillis,
+      startDateText = startDateText,
+      partnerName = partnerName
+    )
+    _upcomingMilestones.value = com.example.alarm.LoveAnniversaryMilestoneScheduler.getUpcomingMilestones(
+      startDateMillis = startMillis,
+      startDateText = startDateText
+    )
+    showToast("🔔 Đã đồng bộ & kích hoạt $count thông báo cột mốc từ Firestore!")
+  }
+
+  fun triggerTestMilestoneNotification() {
+    val partnerName = partnerOnlineUser.value?.effectiveDisplayName ?: "người ấy"
+    val sample = _upcomingMilestones.value.firstOrNull()?.title ?: "💎 Bách Nhật Yêu (100 Ngày)"
+    com.example.alarm.LoveAnniversaryMilestoneScheduler.triggerInstantTestMilestone(
+      context = getApplication<Application>(),
+      partnerName = partnerName,
+      sampleMilestoneTitle = sample
+    )
+    showToast("🔔 Đã kích hoạt thông báo cột mốc thử nghiệm lên thanh trạng thái!")
   }
 
   // Room Persistence for Gift Reminders

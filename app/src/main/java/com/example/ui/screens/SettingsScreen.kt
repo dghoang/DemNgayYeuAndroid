@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.Warning
@@ -829,6 +830,7 @@ fun SettingsScreen(viewModel: InLoveViewModel) {
               onClick = { viewModel.lockApp() }
             )
           }
+
 
           SettingClickableRow(
             icon = Icons.Filled.Info,

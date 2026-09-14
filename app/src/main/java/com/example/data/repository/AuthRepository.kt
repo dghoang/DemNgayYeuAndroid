@@ -161,7 +161,11 @@ class AuthRepository(
       return@withContext false to "Vui lòng nhập mật khẩu!"
     }
 
-    val account = dao.getUserAccountByEmail(email)
+    var account = dao.getUserAccountByEmail(email)
+    if (account == null) {
+      seedDefaultAccountsIfEmpty()
+      account = dao.getUserAccountByEmail(email)
+    }
     if (account == null) {
       dao.insertSecurityLog(
         SecurityAuditLogEntity(
@@ -170,7 +174,7 @@ class AuthRepository(
           detail = "Đăng nhập thất bại: Tài khoản không tồn tại"
         )
       )
-      return@withContext false to "Tài khoản không tồn tại trong hệ thống. Vui lòng đăng ký!"
+      return@withContext false to "Tài khoản không tồn tại. Bạn có thể bấm Đăng Ký ngay bên cạnh!"
     }
 
     // Check Lockout
@@ -275,8 +279,8 @@ class AuthRepository(
     emailInput: String,
     passwordInput: String,
     confirmPasswordInput: String,
-    securityQuestionInput: String,
-    securityAnswerInput: String
+    securityQuestionInput: String = "",
+    securityAnswerInput: String = ""
   ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
     val name = displayNameInput.trim()
     val email = emailInput.trim().lowercase()
@@ -294,25 +298,23 @@ class AuthRepository(
       return@withContext false to "Email này đã được sử dụng. Vui lòng đăng nhập hoặc dùng email khác!"
     }
 
-    // Password Policy Check
-    val strength = AuthSecurityManager.evaluatePasswordStrength(passwordInput)
-    if (strength.level == PasswordStrengthLevel.VERY_WEAK || strength.level == PasswordStrengthLevel.WEAK) {
-      val missing = strength.missingRequirements.joinToString(", ")
-      return@withContext false to "Mật khẩu chưa đủ an toàn! $missing"
+    // Relaxed password length to prevent registration errors
+    if (passwordInput.length < 6) {
+      return@withContext false to "Mật khẩu phải có tối thiểu 6 ký tự!"
     }
 
     if (passwordInput != confirmPasswordInput) {
       return@withContext false to "Mật khẩu xác nhận không khớp. Vui lòng nhập lại chính xác!"
     }
 
-    if (securityAnswerInput.trim().isEmpty()) {
-      return@withContext false to "Vui lòng nhập câu trả lời bảo mật để phục hồi mật khẩu khi cần!"
-    }
-
     // Generate cryptographic salt and hash
     val salt = AuthSecurityManager.generateSalt()
     val passwordHash = AuthSecurityManager.hashPassword(passwordInput, salt)
-    val answerHash = AuthSecurityManager.hashSecurityAnswer(securityAnswerInput, salt)
+    val answerHash = if (securityAnswerInput.trim().isNotEmpty()) {
+      AuthSecurityManager.hashSecurityAnswer(securityAnswerInput, salt)
+    } else {
+      ""
+    }
     val coupleCode = ProfileUtils.generateRandomCoupleCode()
     val uid = "user_${System.currentTimeMillis()}"
     val sessionToken = AuthSecurityManager.generateSessionToken()
@@ -329,7 +331,7 @@ class AuthRepository(
       lockoutUntil = 0L,
       lastLoginAt = System.currentTimeMillis(),
       createdAt = System.currentTimeMillis(),
-      securityQuestion = securityQuestionInput.ifEmpty { AuthSecurityManager.SECURITY_QUESTIONS[0] },
+      securityQuestion = securityQuestionInput.ifEmpty { "InLove Account" },
       securityAnswerHash = answerHash,
       appPin = "",
       isPinEnabled = false,
@@ -376,7 +378,7 @@ class AuthRepository(
     syncOnlineUserWithAccount(newAccount)
     _authState.value = AuthState.Authenticated(newAccount)
 
-    return@withContext true to "Tạo tài khoản thành công! Mã ghép đôi tình yêu của bạn là: $coupleCode"
+    return@withContext true to "Tạo tài khoản thành công! Chào mừng $name tham gia InLove."
   }
 
   /**

@@ -302,7 +302,31 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
       ) {
         AnimatedContent(
           targetState = selectedTab,
-          transitionSpec = { fadeIn() togetherWith fadeOut() },
+          transitionSpec = {
+            if (targetState > initialState) {
+              (androidx.compose.animation.slideInHorizontally(
+                animationSpec = androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                initialOffsetX = { fullWidth -> (fullWidth * 0.22f).toInt() }
+              ) + fadeIn(animationSpec = androidx.compose.animation.core.tween(320)) + androidx.compose.animation.scaleIn(initialScale = 0.97f, animationSpec = androidx.compose.animation.core.tween(320)))
+                .togetherWith(
+                  androidx.compose.animation.slideOutHorizontally(
+                    animationSpec = androidx.compose.animation.core.tween(280, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                    targetOffsetX = { fullWidth -> (-fullWidth * 0.22f).toInt() }
+                  ) + fadeOut(animationSpec = androidx.compose.animation.core.tween(280)) + androidx.compose.animation.scaleOut(targetScale = 0.97f, animationSpec = androidx.compose.animation.core.tween(280))
+                )
+            } else {
+              (androidx.compose.animation.slideInHorizontally(
+                animationSpec = androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                initialOffsetX = { fullWidth -> (-fullWidth * 0.22f).toInt() }
+              ) + fadeIn(animationSpec = androidx.compose.animation.core.tween(320)) + androidx.compose.animation.scaleIn(initialScale = 0.97f, animationSpec = androidx.compose.animation.core.tween(320)))
+                .togetherWith(
+                  androidx.compose.animation.slideOutHorizontally(
+                    animationSpec = androidx.compose.animation.core.tween(280, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                    targetOffsetX = { fullWidth -> (fullWidth * 0.22f).toInt() }
+                  ) + fadeOut(animationSpec = androidx.compose.animation.core.tween(280)) + androidx.compose.animation.scaleOut(targetScale = 0.97f, animationSpec = androidx.compose.animation.core.tween(280))
+                )
+            }
+          },
           label = "screen_transition"
         ) { targetIndex ->
           when (targetIndex) {
@@ -339,37 +363,8 @@ fun InLoveApp(viewModel: InLoveViewModel = viewModel()) {
     // Dialogs
     if (showEditCoupleDialog) {
       EditCoupleDialog(
-        currentBoyName = boyName,
-        currentBoyBirth = boyBirthDate,
-        currentBoyAvatar = boyAvatarUrl,
-        currentBoyAge = boyAge,
-        currentBoyZodiac = boyZodiac,
-        currentGirlName = girlName,
-        currentGirlBirth = girlBirthDate,
-        currentGirlAvatar = girlAvatarUrl,
-        currentGirlAge = girlAge,
-        currentGirlZodiac = girlZodiac,
-        currentTitle = loveTitle,
-        currentDays = loveDays,
-        currentAnniversary = anniversaryDate,
-        onDismiss = { viewModel.closeEditCoupleDialog() },
-        onSave = { b, bb, ba, bAge, bz, g, gb, ga, gAge, gz, t, d, ann ->
-          viewModel.saveCoupleProfile(
-            boy = b,
-            boyBirth = bb,
-            boyAvatar = ba,
-            boyA = bAge,
-            boyZod = bz,
-            girl = g,
-            girlBirth = gb,
-            girlAvatar = ga,
-            girlA = gAge,
-            girlZod = gz,
-            title = t,
-            days = d,
-            anniversary = ann
-          )
-        }
+        viewModel = viewModel,
+        onDismiss = { viewModel.closeEditCoupleDialog() }
       )
     }
 

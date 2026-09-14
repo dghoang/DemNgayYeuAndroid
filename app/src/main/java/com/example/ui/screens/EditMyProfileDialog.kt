@@ -63,6 +63,21 @@ import com.example.data.model.OnlineUserEntity
 import com.example.ui.util.ProfileUtils
 
 @Composable
+private fun profileDialogTextFieldColors() = OutlinedTextFieldDefaults.colors(
+  focusedTextColor = Color(0xFF1E1E24),
+  unfocusedTextColor = Color(0xFF1E1E24),
+  focusedContainerColor = Color.White,
+  unfocusedContainerColor = Color.White,
+  focusedBorderColor = Color(0xFFE91E63),
+  unfocusedBorderColor = Color(0xFFC7C7CC),
+  focusedLabelColor = Color(0xFFE91E63),
+  unfocusedLabelColor = Color(0xFF424242),
+  focusedPlaceholderColor = Color(0xFF757575),
+  unfocusedPlaceholderColor = Color(0xFF9E9E9E),
+  cursorColor = Color(0xFFE91E63)
+)
+
+@Composable
 fun EditMyProfileDialog(
   currentUser: OnlineUserEntity,
   onDismiss: () -> Unit,
@@ -221,10 +236,7 @@ fun EditMyProfileDialog(
           leadingIcon = {
             Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = Color(0xFFE91E63))
           },
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color(0xFFE91E63),
-            unfocusedBorderColor = Color(0xFFFFCDD2)
-          ),
+          colors = profileDialogTextFieldColors(),
           modifier = Modifier
             .fillMaxWidth()
             .testTag("input_my_profile_name")
@@ -272,10 +284,7 @@ fun EditMyProfileDialog(
           leadingIcon = {
             Icon(imageVector = Icons.Default.Cake, contentDescription = null, tint = Color(0xFFE91E63))
           },
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color(0xFFE91E63),
-            unfocusedBorderColor = Color(0xFFFFCDD2)
-          ),
+          colors = profileDialogTextFieldColors(),
           modifier = Modifier
             .fillMaxWidth()
             .testTag("input_my_profile_birth")
@@ -330,10 +339,7 @@ fun EditMyProfileDialog(
           placeholder = { Text("Yêu thương và luôn ở bên em 💕") },
           shape = RoundedCornerShape(14.dp),
           maxLines = 3,
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color(0xFFE91E63),
-            unfocusedBorderColor = Color(0xFFFFCDD2)
-          ),
+          colors = profileDialogTextFieldColors(),
           modifier = Modifier
             .fillMaxWidth()
             .testTag("input_my_profile_bio")

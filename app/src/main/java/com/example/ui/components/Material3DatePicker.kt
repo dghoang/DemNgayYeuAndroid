@@ -386,8 +386,16 @@ fun InLoveDatePickerField(
         }
       },
       colors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color(0xFF1E1E24),
+        unfocusedTextColor = Color(0xFF1E1E24),
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White,
         focusedBorderColor = Primary,
+        unfocusedBorderColor = Color(0xFFC7C7CC),
         focusedLabelColor = Primary,
+        unfocusedLabelColor = Color(0xFF424242),
+        focusedPlaceholderColor = Color(0xFF757575),
+        unfocusedPlaceholderColor = Color(0xFF9E9E9E),
         cursorColor = Primary
       ),
       shape = RoundedCornerShape(12.dp),

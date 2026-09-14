@@ -4,9 +4,13 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,6 +52,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.outlined.Favorite
@@ -237,6 +242,21 @@ fun LoveHomeScreen(
   val daysRemaining = (nextMilestone - loveDays).coerceAtLeast(1)
   val milestoneProgress = ((loveDays % 100).toFloat() / 100f).coerceIn(0.05f, 1f)
 
+  // Fluid UI animations for love days counter and milestone progress
+  val animatedLoveDays by animateIntAsState(
+    targetValue = loveDays,
+    animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+    label = "animated_love_days"
+  )
+  val animatedMilestoneProgress by animateFloatAsState(
+    targetValue = milestoneProgress,
+    animationSpec = spring(
+      dampingRatio = Spring.DampingRatioMediumBouncy,
+      stiffness = Spring.StiffnessLow
+    ),
+    label = "animated_milestone_progress"
+  )
+
   // Trigger floating heart celebration overlay whenever a milestone anniversary is reached
   val isMilestoneReached = (loveDays > 0 && loveDays % 100 == 0)
   LaunchedEffect(loveDays) {
@@ -347,7 +367,7 @@ fun LoveHomeScreen(
         }
       }
 
-      Spacer(modifier = Modifier.height(10.dp))
+
 
       // Dynamic Banner 1: Profile Setup Warning (Anonymous State)
       if (!currentOnlineUser.isProfileSetup) {
@@ -597,7 +617,7 @@ fun LoveHomeScreen(
 
             // Big Days Count in High Contrast
             Text(
-              text = "$loveDays",
+              text = "$animatedLoveDays",
               fontSize = 64.sp,
               fontWeight = FontWeight.ExtraBold,
               color = Color(0xFF26071B),
@@ -1132,7 +1152,7 @@ fun LoveHomeScreen(
           Spacer(modifier = Modifier.height(6.dp))
 
           LinearProgressIndicator(
-            progress = { milestoneProgress },
+            progress = { animatedMilestoneProgress },
             modifier = Modifier
               .fillMaxWidth()
               .height(8.dp)

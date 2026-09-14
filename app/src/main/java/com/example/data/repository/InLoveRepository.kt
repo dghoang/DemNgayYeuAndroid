@@ -638,7 +638,17 @@ class InLoveRepository(private val dao: InLoveDao) {
     photoUri: String,
     note: String = "",
     location: String = "",
-    anniversaryTitle: String = "18/12 - Ngày Yêu Nhau"
+    anniversaryTitle: String = "18/12 - Ngày Yêu Nhau",
+    authorId: String = "",
+    authorName: String = "Bạn",
+    mediaType: String = "IMAGE",
+    videoUri: String? = null,
+    cloudinaryPublicId: String? = null,
+    cloudinaryUrl: String? = null,
+    isCloudinaryStored: Boolean = true,
+    fileSizeFormatted: String = "",
+    durationSeconds: Int = 0,
+    privacyLevel: String = "COUPLE_ONLY"
   ) {
     dao.insertSharedMemory(
       SharedMemoryEntity(
@@ -649,9 +659,23 @@ class InLoveRepository(private val dao: InLoveDao) {
         location = location,
         isFavorite = false,
         anniversaryTitle = anniversaryTitle,
-        createdAt = System.currentTimeMillis()
+        createdAt = System.currentTimeMillis(),
+        authorId = authorId,
+        authorName = authorName,
+        mediaType = mediaType,
+        videoUri = videoUri,
+        cloudinaryPublicId = cloudinaryPublicId,
+        cloudinaryUrl = cloudinaryUrl,
+        isCloudinaryStored = isCloudinaryStored,
+        fileSizeFormatted = fileSizeFormatted,
+        durationSeconds = durationSeconds,
+        privacyLevel = privacyLevel
       )
     )
+  }
+
+  suspend fun updateSharedMemory(memory: SharedMemoryEntity) {
+    dao.updateSharedMemory(memory)
   }
 
   suspend fun deleteSharedMemory(id: Long) {

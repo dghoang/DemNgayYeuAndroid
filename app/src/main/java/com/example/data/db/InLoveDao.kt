@@ -202,6 +202,12 @@ interface InLoveDao {
   @Query("SELECT * FROM online_relationships WHERE relationshipId = :relId LIMIT 1")
   suspend fun getOnlineRelationshipSync(relId: String): com.example.data.model.OnlineRelationshipEntity?
 
+  @Query("SELECT * FROM online_relationships")
+  suspend fun getAllRelationshipsSync(): List<com.example.data.model.OnlineRelationshipEntity>
+
+  @Query("SELECT * FROM online_invites")
+  suspend fun getAllInvitesSync(): List<com.example.data.model.OnlineInviteEntity>
+
   @Query("SELECT * FROM online_relationships WHERE (user1 = :uid OR user2 = :uid) AND status = 'ACTIVE' LIMIT 1")
   suspend fun getActiveRelationshipForUser(uid: String): com.example.data.model.OnlineRelationshipEntity?
 

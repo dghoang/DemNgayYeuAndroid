@@ -103,6 +103,22 @@ import com.example.ui.viewmodel.InLoveViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@Composable
+fun authTextFieldColors() = OutlinedTextFieldDefaults.colors(
+  focusedTextColor = Color(0xFF1E1E24),
+  unfocusedTextColor = Color(0xFF1E1E24),
+  focusedContainerColor = Color.White,
+  unfocusedContainerColor = Color(0xFFFAFAFA),
+  disabledContainerColor = Color(0xFFF5F5F7),
+  focusedBorderColor = Color(0xFFE91E63),
+  unfocusedBorderColor = Color(0xFFC7C7CC),
+  focusedLabelColor = Color(0xFFC2185B),
+  unfocusedLabelColor = Color(0xFF424242),
+  focusedPlaceholderColor = Color(0xFF757575),
+  unfocusedPlaceholderColor = Color(0xFF9E9E9E),
+  cursorColor = Color(0xFFE91E63)
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
@@ -221,7 +237,7 @@ fun AuthScreen(
       )
 
       Text(
-        text = "Không gian tình yêu 1-1 • An toàn & Riêng tư",
+        text = "Đếm ngày yêu thương & Gắn kết trái tim",
         style = MaterialTheme.typography.bodyMedium,
         color = Color(0xFF757575),
         modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
@@ -289,17 +305,7 @@ fun AuthScreen(
         ) {
           if (selectedTab == 0) {
             // ==================== TAB 0: ĐĂNG NHẬP ====================
-            Text(
-              text = "Chào mừng bạn trở lại! 💕",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-              color = Color(0xFF212121)
-            )
-            Text(
-              text = "Đăng nhập để xem nhịp đập ngày yêu và đồng bộ với người ấy",
-              style = MaterialTheme.typography.bodySmall,
-              color = Color(0xFF757575),
-              modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Lockout Alert Banner
             if (isLockedOut) {
@@ -387,10 +393,7 @@ fun AuthScreen(
               ),
               keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
               shape = RoundedCornerShape(14.dp),
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE91E63),
-                unfocusedBorderColor = Color(0xFFE0E0E0)
-              ),
+              colors = authTextFieldColors(),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("input_login_email")
@@ -428,10 +431,7 @@ fun AuthScreen(
               ),
               keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
               shape = RoundedCornerShape(14.dp),
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE91E63),
-                unfocusedBorderColor = Color(0xFFE0E0E0)
-              ),
+              colors = authTextFieldColors(),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("input_login_password")
@@ -518,13 +518,13 @@ fun AuthScreen(
               } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                   Icon(
-                    imageVector = Icons.Default.Shield,
+                    imageVector = Icons.Default.Favorite,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                   )
                   Spacer(modifier = Modifier.width(8.dp))
                   Text(
-                    text = "Đăng Nhập An Toàn",
+                    text = "Đăng Nhập",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                   )
@@ -590,17 +590,7 @@ fun AuthScreen(
             }
           } else {
             // ==================== TAB 1: ĐĂNG KÝ ====================
-            Text(
-              text = "Tạo tài khoản InLove mới ✨",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-              color = Color(0xFF212121)
-            )
-            Text(
-              text = "Bảo mật cấp cao với Salt SHA-256 & Mã ghép đôi riêng biệt",
-              style = MaterialTheme.typography.bodySmall,
-              color = Color(0xFF757575),
-              modifier = Modifier.padding(bottom = 14.dp)
-            )
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Input: Display Name
             OutlinedTextField(
@@ -619,6 +609,7 @@ fun AuthScreen(
               keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
               keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
               shape = RoundedCornerShape(14.dp),
+              colors = authTextFieldColors(),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("input_reg_name")
@@ -646,6 +637,7 @@ fun AuthScreen(
               ),
               keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
               shape = RoundedCornerShape(14.dp),
+              colors = authTextFieldColors(),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("input_reg_email")
@@ -657,8 +649,8 @@ fun AuthScreen(
             OutlinedTextField(
               value = regPassword,
               onValueChange = { regPassword = it },
-              label = { Text("Mật khẩu bảo mật") },
-              placeholder = { Text("Tối thiểu 8 ký tự, chữ hoa, số, ký tự đặc biệt") },
+              label = { Text("Mật khẩu") },
+              placeholder = { Text("Nhập mật khẩu (tối thiểu 6 ký tự)") },
               leadingIcon = {
                 Icon(
                   imageVector = Icons.Default.Lock,
@@ -682,72 +674,11 @@ fun AuthScreen(
               ),
               keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
               shape = RoundedCornerShape(14.dp),
+              colors = authTextFieldColors(),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("input_reg_password")
             )
-
-            // Password Strength Indicator Bar & Status
-            if (regPassword.isNotEmpty()) {
-              Spacer(modifier = Modifier.height(8.dp))
-              Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.SpaceBetween,
-                  verticalAlignment = Alignment.CenterVertically
-                ) {
-                  Text(
-                    text = "Độ mạnh mật khẩu:",
-                    fontSize = 12.sp,
-                    color = Color(0xFF616161)
-                  )
-                  Text(
-                    text = passwordStrength.label,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(passwordStrength.colorHex)
-                  )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                LinearProgressIndicator(
-                  progress = { passwordStrength.score },
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                  color = Color(passwordStrength.colorHex),
-                  trackColor = Color(0xFFEEEEEE)
-                )
-
-                // Password checklist mini-chips
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                  PasswordCriteriaBadge(
-                    label = "8+ ký tự",
-                    isMet = regPassword.length >= 8,
-                    modifier = Modifier.weight(1f)
-                  )
-                  PasswordCriteriaBadge(
-                    label = "Chữ hoa",
-                    isMet = regPassword.any { it.isUpperCase() },
-                    modifier = Modifier.weight(1f)
-                  )
-                  PasswordCriteriaBadge(
-                    label = "Chữ số",
-                    isMet = regPassword.any { it.isDigit() },
-                    modifier = Modifier.weight(1f)
-                  )
-                  PasswordCriteriaBadge(
-                    label = "Ký tự đặc biệt",
-                    isMet = regPassword.any { "!@#$%^&*()_+-=[]{}|;':\",.<>?/~`".contains(it) },
-                    modifier = Modifier.weight(1f)
-                  )
-                }
-              }
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -780,6 +711,7 @@ fun AuthScreen(
               ),
               keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
               shape = RoundedCornerShape(14.dp),
+              colors = authTextFieldColors(),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("input_reg_confirm_password")
@@ -806,98 +738,13 @@ fun AuthScreen(
               }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Security Question Section (for account recovery)
-            Text(
-              text = "Câu hỏi bảo mật (dùng khôi phục mật khẩu):",
-              style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-              color = Color(0xFF424242)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-
-            ExposedDropdownMenuBox(
-              expanded = regQuestionExpanded,
-              onExpandedChange = { regQuestionExpanded = it },
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              OutlinedTextField(
-                value = regSecurityQuestion,
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regQuestionExpanded) },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .menuAnchor()
-              )
-              ExposedDropdownMenu(
-                expanded = regQuestionExpanded,
-                onDismissRequest = { regQuestionExpanded = false }
-              ) {
-                AuthSecurityManager.SECURITY_QUESTIONS.forEach { q ->
-                  DropdownMenuItem(
-                    text = { Text(q, fontSize = 13.sp) },
-                    onClick = {
-                      regSecurityQuestion = q
-                      regQuestionExpanded = false
-                    }
-                  )
-                }
-              }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-              value = regSecurityAnswer,
-              onValueChange = { regSecurityAnswer = it },
-              label = { Text("Câu trả lời bảo mật bí mật của bạn") },
-              placeholder = { Text("vd: Quán cà phê xưa, Đà Lạt...") },
-              leadingIcon = {
-                Icon(
-                  imageVector = Icons.Default.QuestionAnswer,
-                  contentDescription = null,
-                  tint = Color(0xFFE91E63)
-                )
-              },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-              keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-              shape = RoundedCornerShape(14.dp),
-              modifier = Modifier
-                .fillMaxWidth()
-                .testTag("input_reg_security_answer")
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Privacy & Terms agreement checkbox
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Checkbox(
-                checked = agreeToTerms,
-                onCheckedChange = { agreeToTerms = it },
-                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFE91E63))
-              )
-              Text(
-                text = "Cam kết bảo mật & quyền riêng tư tình yêu 1-1",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF616161)
-              )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Primary Register Button
             val canRegister = regName.isNotBlank() &&
                 regEmail.isNotBlank() &&
-                regPassword.length >= 8 &&
+                regPassword.length >= 6 &&
                 passwordsMatch &&
-                regSecurityAnswer.isNotBlank() &&
-                agreeToTerms &&
                 !isRegistering
 
             Button(
@@ -909,9 +756,7 @@ fun AuthScreen(
                     displayNameInput = regName,
                     emailInput = regEmail,
                     passwordInput = regPassword,
-                    confirmPasswordInput = regConfirmPassword,
-                    securityQuestionInput = regSecurityQuestion,
-                    securityAnswerInput = regSecurityAnswer
+                    confirmPasswordInput = regConfirmPassword
                   )
                   isRegistering = false
                   viewModel.showToast(result.second)
@@ -943,7 +788,7 @@ fun AuthScreen(
                   )
                   Spacer(modifier = Modifier.width(8.dp))
                   Text(
-                    text = "Tạo Tài Khoản An Toàn",
+                    text = "Đăng Ký Tài Khoản",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                   )
@@ -956,21 +801,21 @@ fun AuthScreen(
 
       Spacer(modifier = Modifier.height(20.dp))
 
-      // Security Assurance Trust Badges
+      // Footer badge
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
       ) {
         Icon(
-          imageVector = Icons.Default.Shield,
+          imageVector = Icons.Default.Favorite,
           contentDescription = null,
-          tint = Color(0xFF43A047),
+          tint = Color(0xFFE91E63),
           modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-          text = "Mã hóa Salt SHA-256 • Chống Brute-force • Phiên làm việc mã hóa",
+          text = "InLove • Lưu giữ từng khoảnh khắc ngọt ngào 💕",
           fontSize = 11.sp,
           color = Color(0xFF757575),
           fontWeight = FontWeight.Medium
@@ -1152,6 +997,7 @@ fun ForgotPasswordDialog(
           placeholder = { Text("Nhập email đã đăng ký") },
           singleLine = true,
           shape = RoundedCornerShape(12.dp),
+          colors = authTextFieldColors(),
           modifier = Modifier.fillMaxWidth()
         )
 
@@ -1171,6 +1017,7 @@ fun ForgotPasswordDialog(
               singleLine = true,
               keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
               shape = RoundedCornerShape(12.dp),
+              colors = authTextFieldColors(),
               modifier = Modifier.weight(1f)
             )
 
@@ -1234,6 +1081,7 @@ fun ForgotPasswordDialog(
             placeholder = { Text("Nhập câu trả lời đã cài khi đăng ký") },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
+            colors = authTextFieldColors(),
             modifier = Modifier.fillMaxWidth()
           )
         }
@@ -1257,6 +1105,7 @@ fun ForgotPasswordDialog(
           },
           singleLine = true,
           shape = RoundedCornerShape(12.dp),
+          colors = authTextFieldColors(),
           modifier = Modifier.fillMaxWidth()
         )
 
@@ -1270,6 +1119,7 @@ fun ForgotPasswordDialog(
           visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
           singleLine = true,
           shape = RoundedCornerShape(12.dp),
+          colors = authTextFieldColors(),
           modifier = Modifier.fillMaxWidth()
         )
 

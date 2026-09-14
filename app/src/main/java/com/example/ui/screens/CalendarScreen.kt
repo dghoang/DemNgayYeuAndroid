@@ -47,15 +47,19 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhotoAlbum
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Stars
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -113,6 +117,7 @@ fun CalendarScreen(
 ) {
   val milestones by viewModel.milestones.collectAsState()
   val anniversaryDates by viewModel.anniversaryDates.collectAsState()
+  val upcomingMilestones by viewModel.upcomingMilestones.collectAsState()
   val currentFilter by viewModel.calendarFilter.collectAsState()
   val loveBadges by viewModel.loveBadges.collectAsState()
   val loveDays by viewModel.loveDays.collectAsState()
@@ -452,6 +457,15 @@ fun CalendarScreen(
             }
           }
         }
+      }
+
+      // Local Notification Scheduler for Love Milestones from Firestore
+      item {
+        FirestoreMilestonesSchedulerCard(
+          upcomingMilestones = upcomingMilestones,
+          onTestNotification = { viewModel.triggerTestMilestoneNotification() },
+          onSyncFirestore = { viewModel.syncUpcomingMilestonesFromFirestore() }
+        )
       }
 
       // Dedicated Room-Persisted Anniversary Dates Section
@@ -1395,6 +1409,233 @@ fun MilestoneCard(
               )
             }
           }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun FirestoreMilestonesSchedulerCard(
+  upcomingMilestones: List<com.example.alarm.LoveMilestoneInfo>,
+  onTestNotification: () -> Unit,
+  onSyncFirestore: () -> Unit
+) {
+  Card(
+    shape = RoundedCornerShape(24.dp),
+    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
+    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    modifier = Modifier
+      .fillMaxWidth()
+      .border(
+        width = 1.dp,
+        brush = Brush.horizontalGradient(listOf(Primary.copy(alpha = 0.4f), Secondary.copy(alpha = 0.4f))),
+        shape = RoundedCornerShape(24.dp)
+      )
+      .testTag("firestore_milestones_scheduler_card")
+  ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      // Header
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          Box(
+            modifier = Modifier
+              .size(40.dp)
+              .clip(CircleShape)
+              .background(Brush.linearGradient(listOf(Primary, Secondary))),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Filled.NotificationsActive,
+              contentDescription = null,
+              tint = Color.White,
+              modifier = Modifier.size(22.dp)
+            )
+          }
+          Column {
+            Text(
+              text = "Lịch Báo Cột Mốc Tình Yêu",
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              color = OnSurface
+            )
+            Text(
+              text = "Tự động lên lịch từ Ngày Yêu Firestore",
+              fontSize = 11.sp,
+              color = OnSurfaceVariant
+            )
+          }
+        }
+
+        Surface(
+          shape = RoundedCornerShape(20.dp),
+          color = PrimaryContainer.copy(alpha = 0.8f)
+        ) {
+          Text(
+            text = "3 Cấp Báo Thức",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Primary,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      // Informative alert rhythm banner
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Row(
+          modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+          horizontalArrangement = Arrangement.SpaceAround,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            Text("🔔", fontSize = 12.sp)
+            Text("Trước 3 ngày", fontSize = 11.sp, color = OnSurfaceVariant)
+          }
+          Text("•", color = OnSurfaceVariant.copy(alpha = 0.4f))
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            Text("🌹", fontSize = 12.sp)
+            Text("Trước 1 ngày", fontSize = 11.sp, color = OnSurfaceVariant)
+          }
+          Text("•", color = OnSurfaceVariant.copy(alpha = 0.4f))
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            Text("🎉", fontSize = 12.sp)
+            Text("Đúng ngày", fontSize = 11.sp, color = Primary, fontWeight = FontWeight.Bold)
+          }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      // List of upcoming milestones
+      if (upcomingMilestones.isEmpty()) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 14.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = "Đang đồng bộ các cột mốc tiếp theo từ ngày yêu Firestore... 💕",
+            fontSize = 12.sp,
+            color = OnSurfaceVariant
+          )
+        }
+      } else {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          upcomingMilestones.take(4).forEach { ms ->
+            Surface(
+              shape = RoundedCornerShape(14.dp),
+              color = SurfaceContainerLowest,
+              border = BorderStroke(0.5.dp, Primary.copy(alpha = 0.2f)),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+              ) {
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(10.dp),
+                  modifier = Modifier.weight(1f)
+                ) {
+                  Text(text = ms.emoji, fontSize = 20.sp)
+                  Column {
+                    Text(
+                      text = ms.title,
+                      fontSize = 13.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = OnSurface
+                    )
+                    Text(
+                      text = "${ms.formattedDate} • ${ms.description}",
+                      fontSize = 11.sp,
+                      color = OnSurfaceVariant
+                    )
+                  }
+                }
+
+                Surface(
+                  shape = RoundedCornerShape(12.dp),
+                  color = if (ms.daysRemaining <= 7) Primary.copy(alpha = 0.15f) else SurfaceContainerHigh
+                ) {
+                  Text(
+                    text = if (ms.daysRemaining == 0) "Hôm nay! 🎉" else "Còn ${ms.daysRemaining} ngày",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (ms.daysRemaining <= 7) Primary else OnSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      // Action Buttons
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Button(
+          onClick = onTestNotification,
+          shape = RoundedCornerShape(16.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = Primary),
+          modifier = Modifier
+            .weight(1f)
+            .testTag("test_milestone_notification_button")
+        ) {
+          Icon(
+            imageVector = Icons.Filled.NotificationsActive,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text(text = "Thử Chuông Báo", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+
+        OutlinedButton(
+          onClick = onSyncFirestore,
+          shape = RoundedCornerShape(16.dp),
+          border = BorderStroke(1.dp, Primary.copy(alpha = 0.5f)),
+          modifier = Modifier
+            .weight(1f)
+            .testTag("resync_firestore_milestones_button")
+        ) {
+          Icon(
+            imageVector = Icons.Filled.Alarm,
+            contentDescription = null,
+            tint = Primary,
+            modifier = Modifier.size(16.dp)
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text(text = "Đồng Bộ Firestore", fontSize = 12.sp, color = Primary, fontWeight = FontWeight.SemiBold)
         }
       }
     }

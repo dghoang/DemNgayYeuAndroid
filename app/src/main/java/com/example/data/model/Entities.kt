@@ -96,7 +96,18 @@ data class SharedMemoryEntity(
   val createdAt: Long = System.currentTimeMillis(),
   val relationshipId: String? = null,
   val authorId: String = "",
-  val isSynced: Boolean = true
+  val authorName: String = "Bạn",
+  val isSynced: Boolean = true,
+  // Cloudinary media attributes
+  val mediaType: String = "IMAGE", // "IMAGE" or "VIDEO"
+  val videoUri: String? = null,
+  val cloudinaryPublicId: String? = null,
+  val cloudinaryUrl: String? = null,
+  val isCloudinaryStored: Boolean = true,
+  val fileSizeFormatted: String = "",
+  val durationSeconds: Int = 0,
+  // Phân quyền (Permissions): "COUPLE_ONLY", "PRIVATE", "PUBLIC"
+  val privacyLevel: String = "COUPLE_ONLY"
 )
 
 @Entity(tableName = "love_badges")
